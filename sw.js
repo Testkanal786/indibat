@@ -1,6 +1,6 @@
 // Indibat fuers Handy: haelt nur die Programmdateien vor, damit die App auch ohne Netz startet.
 // Deine Daten (Aufgaben, Gebete, Links) laufen nie hier durch; sie gehen direkt an deine Nextcloud.
-const VERSION = 'indibat-2';
+const VERSION = 'indibat-3';
 const DATEIEN = ['./', 'index.html', 'app.js', 'stil.css', 'manifest.webmanifest', 'icons/indibat-64.png', 'icons/indibat-256.png'];
 
 self.addEventListener('install', (e) => {

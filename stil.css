@@ -82,3 +82,5 @@ label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color:
 .blatt-box h3 { font-size: 20px; margin-bottom: 14px; }
 #toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 76px); transform: translateX(-50%); background: var(--text); color: var(--grund); border-radius: 12px; padding: 10px 16px; font-size: 14px; z-index: 20; max-width: 86vw; text-align: center; }
 .fehler { color: var(--rot); font-size: 14px; line-height: 1.45; margin-top: 10px; }
+.glyph { width: 64%; height: 64%; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.logo { width: 34px; height: 34px; border-radius: 9px; object-fit: contain; flex: none; }

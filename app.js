@@ -182,7 +182,7 @@ async function speichern(listHref, felder, basis) {
 
 /* ================= Zustand ================= */
 const GEBETSLISTE = 'Gebete';
-let daten = lager.lies('indibat-daten') || { listen: [], aufgaben: {}, config: null, stand: 0 };
+let daten = lager.lies('indibat-daten') || { listen: [], aufgaben: {}, config: null, symbole: {}, stand: 0 };
 let sicht = 'heute';
 let filter = lager.lies('indibat-filter') || '';
 let zeigeErledigte = false;
@@ -205,7 +205,9 @@ async function laden(leise) {
       const j = JSON.parse(t);
       config = { links: j.links || [], claude: j.claude || [] };
     } catch (e) { if (!leise && !e.netz) toast('Links konnten nicht geladen werden'); }
-    daten = { listen, aufgaben, config, stand: Date.now() };
+    let symbole = daten.symbole || {};
+    try { symbole = JSON.parse(await dav('GET', `${wurzel()}/remote.php/dav/files/${encodeURIComponent(konto.user)}/Indibat/symbole.json`)); } catch { /* Symbole sind Zugabe */ }
+    daten = { listen, aufgaben, config, symbole, stand: Date.now() };
     merken();
   } catch (e) {
     if (!leise || e.status === 401) toast(e.message + (daten.stand ? ' – zeige den letzten Stand' : ''));
@@ -358,6 +360,44 @@ function todoBlatt(listHref, t) {
 }
 
 /* ================= Sicht: Links ================= */
+// Gleiche Zeichen wie auf dem Laptop ("glyph:name"). Bilder ("datei:..." und Website-Symbole) liefert der Laptop ueber symbole.json.
+const GLYPHEN = {
+  ordner: ['#5b8def', 'M3 6h6l2 2h10v11H3z'],
+  sprechblase: ['#8e6fd8', 'M4 5h16v11H9l-5 4z'],
+  bild: ['#d9822b', 'M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z M3 17l5-5 4 4 3-3 6 6 M17 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z'],
+  dashboard: ['#2f9e8f', 'M4 4h7v9H4z M13 4h7v5h-7z M13 11h7v9h-7z M4 15h7v5H4z'],
+  beleg: ['#c0504d', 'M6 3h12v18l-3-2-3 2-3-2-3 2z M9 8h6 M9 12h6'],
+  wuerfel: ['#6b7a90', 'M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5 M12 12v9 M12 12L4 7.5'],
+  blatt: ['#4a9d4f', 'M5 19c0-8 5-13 14-14 0 9-5 14-14 14z M5 19l8-8'],
+  welt: ['#3a7bd5', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3 12h18 M12 3c3 3 3 15 0 18 M12 3c-3 3-3 15 0 18'],
+  haus: ['#b0763a', 'M4 11l8-7 8 7v9H4z M10 20v-6h4v6'],
+  stern: ['#d4a017', 'M12 3l2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 16.9 6.6 19.8l1.1-6.1L3.2 9.4l6.1-.8z'],
+  datei: ['#7a8699', 'M7 3h7l4 4v14H7z M14 3v4h4'],
+  zahnrad: ['#5f6b7a', 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z M12 2.5v3 M12 18.5v3 M2.5 12h3 M18.5 12h3 M5.3 5.3l2.1 2.1 M16.6 16.6l2.1 2.1 M5.3 18.7l2.1-2.1 M16.6 7.4l2.1-2.1'],
+  schloss: ['#8a6d3b', 'M6 11h12v9H6z M8.5 11V8a3.5 3.5 0 0 1 7 0v3'],
+};
+function zeichen(e) {
+  const sym = daten.symbole || {};
+  const s = e.symbol || '';
+  const bild = (src) => (/^data:image\//.test(src || '') ? h('img', { class: 'logo', src, alt: '' }) : null);
+  if (s.startsWith('glyph:') && GLYPHEN[s.slice(6)]) {
+    const [farbe, d] = GLYPHEN[s.slice(6)];
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('class', 'glyph');
+    const p = document.createElementNS(ns, 'path');
+    p.setAttribute('d', d);
+    svg.append(p);
+    const t = h('span', { class: 'mono' }, svg);
+    t.style.background = farbe;
+    return t;
+  }
+  let herkunft = '';
+  try { herkunft = new URL(e.url).origin; } catch { /* kein Link */ }
+  return (s.startsWith('datei:') && bild(sym[s])) || bild(sym['url:' + herkunft])
+    || h('span', { class: 'mono' }, (e.name || '?').trim().charAt(0).toUpperCase());
+}
 function sichtLinks() {
   const c = daten.config;
   if (!c) return [h('div', { class: 'karte' }, h('p', { class: 'leer' }, 'Die Links kommen aus der Datei „Indibat/indibat.json“ in deiner Nextcloud. Sie wurde noch nicht geladen.'))];
@@ -368,7 +408,7 @@ function sichtLinks() {
   if (!gruppen.size) return [h('div', { class: 'karte' }, h('p', { class: 'leer' }, 'Noch keine Links angelegt. Du pflegst sie am Laptop.'))];
   return [...gruppen].map(([g, eintraege]) => [h('p', { class: 'gruppe' }, g),
     h('div', { class: 'karte' }, eintraege.map((e) => h('a', { class: 'link', href: e.url, target: '_blank', rel: 'noopener noreferrer' },
-      h('span', { class: 'mono' }, (e.name || '?').trim().charAt(0).toUpperCase()),
+      zeichen(e),
       h('span', { class: 'ltext' }, h('span', { class: 'lname' }, e.name || e.url), h('span', { class: 'lzusatz' }, e.url.replace(/^https?:\/\//i, '').replace(/\/$/, ''))))))]);
 }
 
@@ -416,7 +456,7 @@ function kontoBlatt() {
       h('button', { class: 'knopf rot links', onclick: () => {
         if (!confirm('Abmelden? Zugangsdaten und der gespeicherte Stand werden von diesem Handy gelöscht.')) return;
         lager.weg('indibat-konto'); lager.weg('indibat-daten'); lager.weg('indibat-filter');
-        konto = null; daten = { listen: [], aufgaben: {}, config: null, stand: 0 };
+        konto = null; daten = { listen: [], aufgaben: {}, config: null, symbole: {}, stand: 0 };
         blattZu(); zeichne();
       } }, 'Abmelden'),
       h('button', { class: 'knopf', onclick: blattZu }, 'Schließen')));
