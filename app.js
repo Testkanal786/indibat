@@ -328,7 +328,7 @@ function sichtAufgaben() {
   if (!listen.length) return [h('div', { class: 'karte' }, h('p', { class: 'leer' }, 'Noch keine Aufgabenlisten gefunden.'))];
   if (!listen.some((l) => l.href === filter)) filter = listen[0].href;
   const alle = daten.aufgaben[filter] || [];
-  const sichtbar = alle.filter((t) => zeigeErledigte || !t.erledigt);
+  const sichtbar = alle.filter((t) => t.erledigt === zeigeErledigte);
   const gruppen = new Map();
   for (const t of sichtbar) { const g = t.gruppe || ''; if (!gruppen.has(g)) gruppen.set(g, []); gruppen.get(g).push(t); }
   const namen = [...gruppen.keys()].sort((a, b) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b, 'de')));
@@ -345,12 +345,14 @@ function sichtAufgaben() {
   const erledigtZahl = alle.filter((t) => t.erledigt).length;
   return [
     h('div', { class: 'filter' }, listen.map((l) => h('button', { class: l.href === filter ? 'an' : '', onclick: () => { filter = l.href; lager.schreib('indibat-filter', filter); zeichne(); } }, l.name))),
-    h('div', { class: 'neu' }, eingabe,
+    h('div', { class: 'segment' },
+      h('button', { class: zeigeErledigte ? '' : 'an', onclick: () => { zeigeErledigte = false; zeichne(); } }, `Offen (${alle.length - erledigtZahl})`),
+      h('button', { class: zeigeErledigte ? 'an' : '', onclick: () => { zeigeErledigte = true; zeichne(); } }, `Erledigt (${erledigtZahl})`)),
+    !zeigeErledigte && h('div', { class: 'neu' }, eingabe,
       h('button', { class: 'knopf flach', 'aria-label': 'Mit Datum, Uhrzeit und Gruppe anlegen', onclick: () => { const t = eingabe.value.trim(); eingabe.value = ''; todoBlatt(filter, null, t); } }, 'Details'),
       h('button', { class: 'knopf primaer flach', 'aria-label': 'Hinzufügen', onclick: anlegen }, '+')),
     sichtbar.length ? namen.map((g) => [g || namen.length > 1 ? h('p', { class: 'gruppe' }, g || 'Ohne Gruppe') : null,
-      h('div', { class: 'karte' }, gruppen.get(g).sort(ordnung).map((t) => todoZeile(filter, t, false)))]) : h('div', { class: 'karte' }, h('p', { class: 'leer' }, 'Alles erledigt.')),
-    erledigtZahl ? h('button', { class: 'knopf', onclick: () => { zeigeErledigte = !zeigeErledigte; zeichne(); } }, zeigeErledigte ? 'Erledigte ausblenden' : `Erledigte anzeigen (${erledigtZahl})`) : null,
+      h('div', { class: 'karte' }, gruppen.get(g).sort(ordnung).map((t) => todoZeile(filter, t, false)))]) : h('div', { class: 'karte' }, h('p', { class: 'leer' }, zeigeErledigte ? 'In dieser Liste ist noch nichts erledigt.' : 'Alles erledigt.')),
   ];
 }
 function todoBlatt(listHref, t, titelVor) {

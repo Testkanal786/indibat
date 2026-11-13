@@ -99,3 +99,6 @@ main.von-links { animation: von-links .18s ease-out; }
 @media (prefers-reduced-motion: reduce) { main.von-rechts, main.von-links { animation: none; } }
 body { overflow: hidden; }
 main { touch-action: pan-y; will-change: transform; }
+.segment { display: grid; grid-template-columns: 1fr 1fr; background: rgba(128, 128, 128, .18); border-radius: 12px; padding: 3px; margin-bottom: 12px; }
+.segment button { padding: 8px 0; border-radius: 9px; font-size: 14px; color: var(--text2); }
+.segment button.an { background: var(--karte); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
