@@ -32,12 +32,14 @@ function toast(text) {
   clearTimeout(toastUhr);
   toastUhr = setTimeout(() => { t.hidden = true; }, 3500);
 }
+let blattNeu = null;
 function blatt(titel, ...inhalt) {
+  blattNeu = null;
   const b = $('#blatt');
   fuelle(b, h('div', { class: 'blatt-box' }, h('h3', null, titel), inhalt));
   b.hidden = false;
 }
-const blattZu = () => { $('#blatt').hidden = true; fuelle($('#blatt')); };
+const blattZu = () => { blattNeu = null; $('#blatt').hidden = true; fuelle($('#blatt')); };
 
 /* ================= Nextcloud (CalDAV / WebDAV) ================= */
 let konto = lager.lies('indibat-konto'); // { url, login, pass, user }
@@ -292,7 +294,8 @@ function sichtHeute() {
         h('p', { id: 'countdown' }, restText(zeitpunkt(naechstes)))] : h('p', { class: 'leer' }, 'Keine weiteren Zeiten eingetragen.'),
       liste.map((t) => h('button', { class: 'zeile' + (t.erledigt ? ' fertig' : '') + (laufend && t.uid === laufend.uid ? ' jetzt' : ''), onclick: () => umschalten(gebetsHref(), t) },
         h('span', { class: 'kreis' + (t.erledigt ? ' an' : '') }, t.erledigt ? '✓' : ''), h('span', { class: 'name' }, t.titel), h('span', { class: 'zeit' }, t.zeit))),
-      h('div', { class: 'woche' }, woche)));
+      h('button', { class: 'woche', 'aria-label': 'Gebete der letzten Tage öffnen', onclick: gebeteBlatt }, woche),
+      h('p', { class: 'klein mitte' }, 'Antippen, um vergangene Tage nachzutragen')));
     if (new Date().getDay() === 4) out.push(h('div', { class: 'karte' }, h('p', { class: 'kopf' }, 'Donnerstag'), h('p', null, 'Heute Abend ist Dhikr.')));
   }
   const faellig = [];
@@ -301,6 +304,22 @@ function sichtHeute() {
   out.push(h('div', { class: 'karte' }, h('p', { class: 'kopf' }, 'Heute fällig'),
     faellig.length ? faellig.map(([href, t]) => todoZeile(href, t, true)) : h('p', { class: 'leer' }, 'Nichts fällig.')));
   return out;
+}
+
+function gebeteBlatt() {
+  const tage = [];
+  for (let i = 0; i >= -7; i--) {
+    const d = tagVersetzt(i);
+    const g = gebeteAm(ymd(d));
+    if (!g.length) continue;
+    tage.push(h('div', { class: 'gtag' },
+      h('p', { class: 'gtag-name' }, i === 0 ? 'Heute' : i === -1 ? 'Gestern' : `${WOCHENTAGE[d.getDay()]}, ${d.getDate()}.${d.getMonth() + 1}.`),
+      h('div', { class: 'gtag-reihe' }, g.map((t) => h('button', { class: 'gknopf', 'aria-pressed': String(t.erledigt), onclick: () => umschalten(gebetsHref(), t) },
+        h('span', { class: 'kreis' + (t.erledigt ? ' an' : '') }, t.erledigt ? '✓' : ''), h('span', { class: 'gname' }, t.titel))))));
+  }
+  blatt('Gebete der letzten Tage', tage.length ? tage : h('p', { class: 'leer' }, 'Keine Einträge vorhanden.'),
+    h('div', { class: 'reihe' }, h('span', { class: 'links' }), h('button', { class: 'knopf', onclick: blattZu }, 'Schließen')));
+  blattNeu = gebeteBlatt;
 }
 
 /* ================= Sicht: Aufgaben ================= */
@@ -326,24 +345,34 @@ function sichtAufgaben() {
   const erledigtZahl = alle.filter((t) => t.erledigt).length;
   return [
     h('div', { class: 'filter' }, listen.map((l) => h('button', { class: l.href === filter ? 'an' : '', onclick: () => { filter = l.href; lager.schreib('indibat-filter', filter); zeichne(); } }, l.name))),
-    h('div', { class: 'neu' }, eingabe, h('button', { class: 'knopf primaer flach', 'aria-label': 'Hinzufügen', onclick: anlegen }, '+')),
+    h('div', { class: 'neu' }, eingabe,
+      h('button', { class: 'knopf flach', 'aria-label': 'Mit Datum, Uhrzeit und Gruppe anlegen', onclick: () => { const t = eingabe.value.trim(); eingabe.value = ''; todoBlatt(filter, null, t); } }, 'Details'),
+      h('button', { class: 'knopf primaer flach', 'aria-label': 'Hinzufügen', onclick: anlegen }, '+')),
     sichtbar.length ? namen.map((g) => [g || namen.length > 1 ? h('p', { class: 'gruppe' }, g || 'Ohne Gruppe') : null,
       h('div', { class: 'karte' }, gruppen.get(g).sort(ordnung).map((t) => todoZeile(filter, t, false)))]) : h('div', { class: 'karte' }, h('p', { class: 'leer' }, 'Alles erledigt.')),
     erledigtZahl ? h('button', { class: 'knopf', onclick: () => { zeigeErledigte = !zeigeErledigte; zeichne(); } }, zeigeErledigte ? 'Erledigte ausblenden' : `Erledigte anzeigen (${erledigtZahl})`) : null,
   ];
 }
-function todoBlatt(listHref, t) {
-  const titel = h('input', { class: 'feld', value: t.titel });
-  const datum = h('input', { class: 'feld', type: 'date', value: t.faellig || '' });
-  const zeit = h('input', { class: 'feld', type: 'time', value: t.zeit || '' });
-  const bekannte = [...new Set((daten.aufgaben[listHref] || []).map((x) => x.gruppe).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
-  const gruppe = h('input', { class: 'feld', value: t.gruppe || '', list: 'gruppen-liste', placeholder: 'z. B. Website' });
+function todoBlatt(listHref, t, titelVor) {
+  const neu = !t;
+  const alt = t || { titel: titelVor || '', faellig: null, zeit: null, gruppe: '', notiz: '' };
+  const listen = todoListen();
+  const titel = h('input', { class: 'feld', value: alt.titel });
+  const liste = neu && listen.length > 1 ? h('select', { class: 'feld' }, listen.map((l) => h('option', { value: l.href, selected: l.href === listHref }, l.name))) : null;
+  const datum = h('input', { class: 'feld', type: 'date', value: alt.faellig || '' });
+  const zeit = h('input', { class: 'feld', type: 'time', value: alt.zeit || '' });
+  const bekannte = [...new Set(listen.flatMap((l) => daten.aufgaben[l.href] || []).map((x) => x.gruppe).filter(Boolean))].sort((x, y) => x.localeCompare(y, 'de'));
+  const gruppe = h('input', { class: 'feld', value: alt.gruppe || '', list: 'gruppen-liste', placeholder: 'z. B. Website' });
   const notiz = h('textarea', { class: 'feld' });
-  notiz.value = t.notiz || '';
+  notiz.value = alt.notiz || '';
   const sichern = async () => {
     if (!titel.value.trim()) { toast('Bitte einen Titel eintragen'); return; }
+    const ziel = liste ? liste.value : listHref;
+    const felder = { titel: titel.value.trim(), faellig: datum.value || null, zeit: datum.value ? (zeit.value || null) : null, gruppe: gruppe.value.trim(), notiz: notiz.value.trim() };
+    if (zeit.value && !datum.value) { toast('Eine Uhrzeit braucht auch ein Datum'); return; }
     try {
-      ersetze(listHref, t, await speichern(listHref, { titel: titel.value.trim(), faellig: datum.value || null, zeit: datum.value ? (zeit.value || null) : null, gruppe: gruppe.value.trim(), notiz: notiz.value.trim() }, t));
+      ersetze(ziel, t, await speichern(ziel, neu ? { ...felder, erledigt: false } : felder, t || undefined));
+      if (neu) { filter = ziel; lager.schreib('indibat-filter', filter); }
       blattZu(); zeichne();
     } catch (e) { toast('Nicht gespeichert: ' + e.message); }
   };
@@ -352,11 +381,14 @@ function todoBlatt(listHref, t) {
     try { await dav('DELETE', wurzel() + t.href); ersetze(listHref, t, null); blattZu(); zeichne(); }
     catch (e) { toast('Nicht gelöscht: ' + e.message); }
   };
-  blatt('Aufgabe',
-    h('label', null, 'Titel', titel), h('label', null, 'Fällig am', datum), h('label', null, 'Uhrzeit (optional)', zeit),
+  blatt(neu ? 'Neue Aufgabe' : 'Aufgabe',
+    h('label', null, 'Titel', titel), liste && h('label', null, 'Liste', liste),
+    h('label', null, 'Fällig am', datum), h('label', null, 'Uhrzeit (optional)', zeit),
     h('label', null, 'Gruppe', gruppe), h('datalist', { id: 'gruppen-liste' }, bekannte.map((g) => h('option', { value: g }))),
     h('label', null, 'Notiz', notiz),
-    h('div', { class: 'reihe' }, h('button', { class: 'knopf rot links', onclick: loeschen }, 'Löschen'), h('button', { class: 'knopf', onclick: blattZu }, 'Abbrechen'), h('button', { class: 'knopf primaer', onclick: sichern }, 'Sichern')));
+    h('div', { class: 'reihe' }, neu ? h('span', { class: 'links' }) : h('button', { class: 'knopf rot links', onclick: loeschen }, 'Löschen'),
+      h('button', { class: 'knopf', onclick: blattZu }, 'Abbrechen'), h('button', { class: 'knopf primaer', onclick: sichern }, neu ? 'Anlegen' : 'Sichern')));
+  if (neu && !alt.titel) titel.focus();
 }
 
 /* ================= Sicht: Links ================= */
@@ -473,9 +505,37 @@ function zeichne() {
   for (const b of document.querySelectorAll('nav button')) b.classList.toggle('an', b.dataset.sicht === sicht);
   const aktiv = document.activeElement;
   if (eingerichtet && sicht === 'aufgaben' && aktiv && aktiv.matches('.neu input') && aktiv.value) return; // Eingabe nicht wegreissen
+  if (blattNeu && !$('#blatt').hidden) { const y = ($('.blatt-box') || {}).scrollTop || 0; blattNeu(); const box = $('.blatt-box'); if (box) box.scrollTop = y; }
   fuelle($('#inhalt'), !eingerichtet ? sichtEinrichtung() : sicht === 'heute' ? sichtHeute() : sicht === 'aufgaben' ? sichtAufgaben() : sichtLinks());
 }
-for (const b of document.querySelectorAll('nav button')) b.addEventListener('click', () => { sicht = b.dataset.sicht; zeichne(); $('#inhalt').scrollTop = 0; });
+for (const b of document.querySelectorAll('nav button')) b.addEventListener('click', () => wechsle(b.dataset.sicht));
+const REIHE = ['heute', 'aufgaben', 'links'];
+function wechsle(ziel) {
+  const von = REIHE.indexOf(sicht);
+  const nach = REIHE.indexOf(ziel);
+  if (nach < 0 || nach === von) return;
+  sicht = ziel; zeichne();
+  const m = $('#inhalt');
+  m.scrollTop = 0;
+  m.classList.remove('von-rechts', 'von-links');
+  void m.offsetWidth; // Animation neu starten
+  m.classList.add(nach > von ? 'von-rechts' : 'von-links');
+}
+let wischStart = null;
+$('#inhalt').addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  wischStart = e.touches.length === 1 && konto && !e.target.closest('.filter, input, textarea, select') ? { x: t.clientX, y: t.clientY } : null;
+}, { passive: true });
+$('#inhalt').addEventListener('touchend', (e) => {
+  if (!wischStart) return;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - wischStart.x;
+  const dy = t.clientY - wischStart.y;
+  wischStart = null;
+  if (Math.abs(dx) < 70 || Math.abs(dx) < 2 * Math.abs(dy)) return; // nur deutliches seitliches Wischen
+  const ziel = REIHE[REIHE.indexOf(sicht) + (dx < 0 ? 1 : -1)];
+  if (ziel) wechsle(ziel);
+}, { passive: true });
 $('#btn-neu-laden').addEventListener('click', () => laden(false));
 $('#btn-konto').addEventListener('click', kontoBlatt);
 $('#blatt').addEventListener('click', (e) => { if (e.target.id === 'blatt') blattZu(); });

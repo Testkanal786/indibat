@@ -84,3 +84,16 @@ label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color:
 .fehler { color: var(--rot); font-size: 14px; line-height: 1.45; margin-top: 10px; }
 .glyph { width: 64%; height: 64%; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .logo { width: 34px; height: 34px; border-radius: 9px; object-fit: contain; flex: none; }
+button.woche { width: 100%; padding: 8px 0 4px; border-radius: 12px; }
+.mitte { text-align: center; margin-top: 4px; }
+.gtag { background: var(--karte); border: 1px solid var(--rand); border-radius: 16px; padding: 12px; margin-bottom: 10px; }
+.gtag-name { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 8px; }
+.gtag-reihe { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.gknopf { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 0; border-radius: 10px; min-width: 0; }
+.gknopf .kreis { width: 30px; height: 30px; }
+.gname { font-size: 11px; color: var(--text2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes von-rechts { from { transform: translateX(28px); opacity: .3; } to { transform: none; opacity: 1; } }
+@keyframes von-links { from { transform: translateX(-28px); opacity: .3; } to { transform: none; opacity: 1; } }
+main.von-rechts { animation: von-rechts .18s ease-out; }
+main.von-links { animation: von-links .18s ease-out; }
+@media (prefers-reduced-motion: reduce) { main.von-rechts, main.von-links { animation: none; } }
