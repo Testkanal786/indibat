@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https:; img-src 'self' data:; style-src 'self'; script-src 'self'">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101014" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="noindex">
+<title>Indibat</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/indibat-64.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="stil.css">
+</head>
+<body>
+<header>
+  <h1 id="titel">Heute</h1>
+  <button id="btn-neu-laden" class="rund" title="Aktualisieren" aria-label="Aktualisieren">↻</button>
+  <button id="btn-konto" class="rund" title="Konto" aria-label="Konto">⚙</button>
+</header>
+<main id="inhalt"></main>
+<nav>
+  <button data-sicht="heute" class="an">Heute</button>
+  <button data-sicht="aufgaben">Aufgaben</button>
+  <button data-sicht="links">Links</button>
+</nav>
+<div id="blatt" hidden></div>
+<div id="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>

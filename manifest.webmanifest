@@ -1,0 +1,17 @@
+{
+  "name": "Indibat",
+  "short_name": "Indibat",
+  "description": "Aufgaben, Gebete und Links aus Indibat",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f2f7",
+  "theme_color": "#f2f2f7",
+  "icons": [
+    { "src": "icons/indibat-256.png", "sizes": "256x256", "type": "image/png" },
+    { "src": "icons/indibat-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/indibat-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/indibat-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
