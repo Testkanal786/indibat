@@ -378,10 +378,14 @@ function sichtEinrichtung() {
   const login = h('input', { class: 'feld', autocomplete: 'username', autocapitalize: 'off', spellcheck: 'false' });
   const pass = h('input', { class: 'feld', type: 'password', autocomplete: 'current-password' });
   const knopf = h('button', { class: 'knopf primaer' }, 'Verbinden');
+  const meldung = h('p', { class: 'fehler', role: 'alert', hidden: true });
+  const melde = (t) => { meldung.textContent = t; meldung.hidden = !t; };
   knopf.addEventListener('click', async () => {
     let adresse = url.value.trim().replace(/\/+$/, '');
-    if (!/^https:\/\//i.test(adresse)) { toast('Die Adresse muss mit https:// beginnen'); return; }
-    if (!login.value.trim() || !pass.value) { toast('Anmeldename und App-Passwort fehlen'); return; }
+    melde('');
+    if (!/^https:\/\//i.test(adresse)) { melde('Die Adresse muss mit https:// beginnen.'); return; }
+    if (!login.value.trim() || !pass.value) { melde('Anmeldename und App-Passwort fehlen.'); return; }
+    const wieAppPasswort = /^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$/.test(pass.value.trim());
     knopf.disabled = true; knopf.textContent = 'Prüfe …';
     konto = { url: adresse, login: login.value.trim(), pass: pass.value.trim(), user: '' };
     try {
@@ -391,7 +395,9 @@ function sichtEinrichtung() {
       zeichne(); laden();
     } catch (e) {
       konto = null;
-      toast(e.netz ? 'Keine Verbindung. Ist „WebAppPassword“ in der Nextcloud eingerichtet und diese Adresse dort erlaubt?' : e.message);
+      melde(e.netz ? 'Keine Antwort von der Nextcloud. Nach mehreren Fehlversuchen bremst sie Anmeldungen für einige Minuten – warte kurz und versuche es dann erneut. Sonst prüfe die Adresse und ob diese Seite in „WebAppPassword“ erlaubt ist.'
+        : e.status === 401 ? 'Die Nextcloud lehnt Anmeldename oder Passwort ab. ' + (wieAppPasswort ? 'Prüfe den Anmeldenamen: Er steht beim Erstellen des App-Passworts direkt über dem Passwort.' : 'Das eingegebene Passwort hat nicht die Form eines App-Passworts (fünf Gruppen mit je fünf Zeichen, durch Bindestriche getrennt). Dein normales Passwort funktioniert hier nicht.')
+        : e.message);
       knopf.disabled = false; knopf.textContent = 'Verbinden';
     }
   });
@@ -399,7 +405,7 @@ function sichtEinrichtung() {
     h('p', { class: 'kopf' }, 'Mit deiner Nextcloud verbinden'),
     h('label', null, 'Adresse der Nextcloud', url), h('label', null, 'Anmeldename', login), h('label', null, 'App-Passwort', pass),
     h('p', { class: 'klein' }, 'Lege das App-Passwort in der Nextcloud unter Einstellungen → Sicherheit → „Geräte & Sitzungen“ an, nicht dein normales Passwort. Es bleibt nur auf diesem Handy und lässt sich dort jederzeit einzeln widerrufen.'),
-    h('div', { class: 'reihe' }, knopf))];
+    meldung, h('div', { class: 'reihe' }, knopf))];
 }
 function kontoBlatt() {
   if (!konto) return;

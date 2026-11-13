@@ -81,3 +81,4 @@ label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color:
 .blatt-box { width: 100%; max-height: 92vh; overflow-y: auto; background: var(--grund); border-radius: 22px 22px 0 0; padding: 20px 18px calc(env(safe-area-inset-bottom) + 20px); }
 .blatt-box h3 { font-size: 20px; margin-bottom: 14px; }
 #toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 76px); transform: translateX(-50%); background: var(--text); color: var(--grund); border-radius: 12px; padding: 10px 16px; font-size: 14px; z-index: 20; max-width: 86vw; text-align: center; }
+.fehler { color: var(--rot); font-size: 14px; line-height: 1.45; margin-top: 10px; }
