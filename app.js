@@ -521,21 +521,54 @@ function wechsle(ziel) {
   void m.offsetWidth; // Animation neu starten
   m.classList.add(nach > von ? 'von-rechts' : 'von-links');
 }
-let wischStart = null;
-$('#inhalt').addEventListener('touchstart', (e) => {
+// Wischen: Der Inhalt haengt am Finger. Loslassen nach einem Viertel der Breite (oder mit Schwung) wechselt, sonst federt er zurueck.
+const M = $('#inhalt');
+let wisch = null;
+M.addEventListener('touchstart', (e) => {
   const t = e.touches[0];
-  wischStart = e.touches.length === 1 && konto && !e.target.closest('.filter, input, textarea, select') ? { x: t.clientX, y: t.clientY } : null;
+  wisch = e.touches.length === 1 && konto && !e.target.closest('.filter, input, textarea, select') ? { x: t.clientX, y: t.clientY, t: Date.now(), quer: null, dx: 0 } : null;
 }, { passive: true });
-$('#inhalt').addEventListener('touchend', (e) => {
-  if (!wischStart) return;
-  const t = e.changedTouches[0];
-  const dx = t.clientX - wischStart.x;
-  const dy = t.clientY - wischStart.y;
-  wischStart = null;
-  if (Math.abs(dx) < 70 || Math.abs(dx) < 2 * Math.abs(dy)) return; // nur deutliches seitliches Wischen
-  const ziel = REIHE[REIHE.indexOf(sicht) + (dx < 0 ? 1 : -1)];
-  if (ziel) wechsle(ziel);
+M.addEventListener('touchmove', (e) => {
+  if (!wisch) return;
+  const dx = e.touches[0].clientX - wisch.x;
+  const dy = e.touches[0].clientY - wisch.y;
+  if (wisch.quer === null) {
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    wisch.quer = Math.abs(dx) > Math.abs(dy);
+    if (wisch.quer) { M.classList.remove('von-rechts', 'von-links'); M.style.transition = 'none'; }
+  }
+  if (!wisch.quer) return;
+  const n = REIHE.indexOf(sicht);
+  const amRand = (dx > 0 && n === 0) || (dx < 0 && n === REIHE.length - 1);
+  wisch.dx = amRand ? dx / 4 : dx; // am Rand nur zaeh nachgeben
+  M.style.transform = `translateX(${wisch.dx}px)`;
+  M.style.opacity = String(1 - Math.min(0.5, Math.abs(wisch.dx) / (M.clientWidth * 1.5)));
 }, { passive: true });
+function wischEnde() {
+  if (!wisch) return;
+  const w = wisch;
+  wisch = null;
+  if (!w.quer) return;
+  const breite = M.clientWidth;
+  const tempo = Math.abs(w.dx) / Math.max(1, Date.now() - w.t); // Pixel je Millisekunde
+  const ziel = REIHE[REIHE.indexOf(sicht) + (w.dx < 0 ? 1 : -1)];
+  const weiter = ziel && (Math.abs(w.dx) > breite * 0.25 || (tempo > 0.35 && Math.abs(w.dx) > 24));
+  M.style.transition = 'transform .15s ease-out, opacity .15s ease-out';
+  if (!weiter) { M.style.transform = ''; M.style.opacity = ''; return; }
+  const richtung = w.dx < 0 ? -1 : 1;
+  M.style.transform = `translateX(${richtung * breite}px)`;
+  M.style.opacity = '0';
+  setTimeout(() => {
+    sicht = ziel; zeichne(); M.scrollTop = 0;
+    M.style.transition = 'none';
+    M.style.transform = `translateX(${-richtung * breite * 0.4}px)`;
+    void M.offsetWidth;
+    M.style.transition = 'transform .22s cubic-bezier(.2, .8, .2, 1), opacity .22s ease-out';
+    M.style.transform = ''; M.style.opacity = '';
+  }, 140);
+}
+M.addEventListener('touchend', wischEnde, { passive: true });
+M.addEventListener('touchcancel', wischEnde, { passive: true });
 $('#btn-neu-laden').addEventListener('click', () => laden(false));
 $('#btn-konto').addEventListener('click', kontoBlatt);
 $('#blatt').addEventListener('click', (e) => { if (e.target.id === 'blatt') blattZu(); });

@@ -97,3 +97,5 @@ button.woche { width: 100%; padding: 8px 0 4px; border-radius: 12px; }
 main.von-rechts { animation: von-rechts .18s ease-out; }
 main.von-links { animation: von-links .18s ease-out; }
 @media (prefers-reduced-motion: reduce) { main.von-rechts, main.von-links { animation: none; } }
+body { overflow: hidden; }
+main { touch-action: pan-y; will-change: transform; }
