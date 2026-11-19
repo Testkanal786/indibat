@@ -45,14 +45,30 @@ async function taeglichLaden() {
   return { taeglich: K.normalisieren(t.daten), archiv: { [j - 1]: a1.daten.tage || {}, [j]: a2.daten.tage || {} } };
 }
 const tdaten = () => K.normalisieren(daten.taeglich || K.leer());
+// Sofort zeigen, im Hintergrund speichern. Mehrere schnelle Tipper werden nacheinander gesichert;
+// erst wenn alle durch sind, wird der Stand aus der Nextcloud übernommen. Schlägt etwas fehl, wird neu geladen.
+let speicherKette = Promise.resolve();
+let speichertNoch = 0;
 async function aendern(art, args) {
-  try {
-    const d = await dateiAendern('taeglich.json', K.leer, (x) => { K.normalisieren(x); K.ops[art](x, { heute: heuteT(), ...args }); });
-    daten.taeglich = K.normalisieren(d);
-    merken();
-    zeichne();
-    return true;
-  } catch (e) { toast('Nicht gespeichert: ' + e.message); return false; }
+  args = { heute: heuteT(), ...args };
+  if (art === 'speichern' && !args.gewohnheit.id) args.gewohnheit = { ...args.gewohnheit, id: K.neueId() };
+  const lokal = K.normalisieren(JSON.parse(JSON.stringify(daten.taeglich || K.leer())));
+  K.ops[art](lokal, args);
+  daten.taeglich = lokal;
+  merken();
+  zeichne();
+  speichertNoch++;
+  speicherKette = speicherKette.then(async () => {
+    try {
+      const d = await dateiAendern('taeglich.json', K.leer, (x) => { K.normalisieren(x); K.ops[art](x, args); });
+      if (--speichertNoch === 0) { daten.taeglich = K.normalisieren(d); merken(); zeichne(); }
+    } catch (e) {
+      speichertNoch--;
+      toast('Nicht gespeichert: ' + e.message);
+      try { daten.taeglich = (await taeglichLaden()).taeglich; merken(); zeichne(); } catch { /* bleibt beim letzten Stand */ }
+    }
+  });
+  return true;
 }
 
 /* ---------- Gebete eines Tages ---------- */
@@ -73,12 +89,18 @@ async function gebetSetzen(tag, key) {
   if (t) { await umschalten(gebetsHref(), t); return; }
   const jahr = tag.slice(0, 4);
   const alt = (gebeteWerte(tag) || {})[key];
+  // sofort zeigen
+  if (!daten.archiv) daten.archiv = {};
+  if (!daten.archiv[jahr]) daten.archiv[jahr] = {};
+  const vorher = daten.archiv[jahr][tag];
+  daten.archiv[jahr][tag] = { ...Object.fromEntries(K.GEBETE.map((k) => [k, false])), ...(vorher || {}), [key]: !alt };
+  zeichne();
   try {
     const a = await dateiAendern(K.archivName(jahr), () => K.archivLeer(Number(jahr)), (x) => { if (!x.tage) x.tage = {}; K.archivOps.gebet(x, { tag, key, wert: !alt }); });
     if (!daten.archiv) daten.archiv = {};
     daten.archiv[jahr] = a.tage;
     merken();
-  } catch (e) { toast('Nicht gespeichert: ' + e.message); }
+  } catch (e) { daten.archiv[jahr][tag] = vorher; toast('Nicht gespeichert: ' + e.message); }
   zeichne();
 }
 
@@ -104,11 +126,11 @@ function gewohnheitZeile(e, tag) {
   g.art === 'zaehler' ? h('span', { class: 'zaehler' + (fertig ? ' an' : '') }, `${e.wert}/${g.ziel}`) : h('span', { class: 'kreis' + (fertig ? ' an' : '') }, fertig ? '✓' : ''),
   h('span', { class: 'gname' }, g.name));
   if (g.art === 'zaehler') {
-    los.addEventListener('touchstart', () => { halten = setTimeout(() => { gehalten = true; if (navigator.vibrate) navigator.vibrate(15); weniger(); }, 550); }, { passive: true });
-    for (const ev of ['touchend', 'touchmove', 'touchcancel']) los.addEventListener(ev, () => clearTimeout(halten), { passive: true });
-    los.addEventListener('contextmenu', (ev) => ev.preventDefault());
+    K.an(los, 'touchstart', () => { halten = setTimeout(() => { gehalten = true; if (navigator.vibrate) navigator.vibrate(15); weniger(); }, 550); }, { passive: true });
+    for (const ev of ['touchend', 'touchmove', 'touchcancel']) K.an(los, ev, () => clearTimeout(halten), { passive: true });
+    K.an(los, 'contextmenu', (ev) => ev.preventDefault());
   }
-  return h('div', { class: 'gew-zeile' + (fertig ? ' fertig' : '') }, los,
+  return h('div', { class: 'gew-zeile' + (fertig ? ' fertig' : ''), 'data-k': g.id + tag }, los,
     g.art === 'zaehler' && h('button', { class: 'mini', 'aria-label': 'Eins weniger', onclick: weniger }, '−'),
     h('button', { class: 'mini', 'aria-label': 'Bearbeiten', onclick: () => gewohnheitBlatt(g) }, '⋯'));
 }
@@ -122,7 +144,6 @@ function sichtTaeglich() {
   const archiviert = d.gewohnheiten.filter((g) => g.archiviert);
   const raster = K.raster({ wochen: rasterJahr ? 53 : 12, heute, klein: rasterJahr, antippen: tagBlatt,
     wert: (tag) => K.tagesAnteil(rasterModus, gebeteWerte(tag), K.tagGewohnheiten(d, tag)) });
-  if (rasterJahr) requestAnimationFrame(() => { raster.scrollLeft = raster.scrollWidth; });
   return [
     h('div', { class: 'karte' }, ringe(),
       gw.liste.length ? gw.liste.map((e) => gewohnheitZeile(e, heute))
@@ -135,7 +156,7 @@ function sichtTaeglich() {
       h('p', { class: 'klein' }, 'Je kräftiger ein Kästchen, desto mehr war erledigt. Antippen zum Nachtragen.'),
       h('div', { class: 'reihe' },
         archiviert.length ? h('button', { class: 'knopf links', onclick: archivBlatt }, `Archiv (${archiviert.length})`) : h('span', { class: 'links' }),
-        h('button', { class: 'knopf', onclick: () => { rasterJahr = !rasterJahr; zeichne(); } }, rasterJahr ? '12 Wochen' : 'Ganzes Jahr'))),
+        h('button', { class: 'knopf', onclick: () => { rasterJahr = !rasterJahr; zeichne(); if (rasterJahr) requestAnimationFrame(() => { const r = $('.raster'); if (r) r.scrollLeft = r.scrollWidth; }); } }, rasterJahr ? '12 Wochen' : 'Ganzes Jahr'))),
   ];
 }
 
@@ -155,7 +176,7 @@ function tagBlatt(tag) {
         gw.liste.length ? h('div', { class: 'karte' }, gw.liste.map((e) => gewohnheitZeile(e, tag))) : h('p', { class: 'leer' }, 'An diesem Tag war keine Gewohnheit fällig.'));
     }
     const wahl = h('input', { class: 'feld', type: 'date', value: tag, max: heuteT() });
-    wahl.addEventListener('change', () => { if (wahl.value) tagBlatt(wahl.value); });
+    K.an(wahl, 'change', () => { if (wahl.value) tagBlatt(wahl.value); });
     blatt(`${WOCHENTAGE[d.getDay()]}, ${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`, teile,
       h('label', null, 'Anderes Datum …', wahl),
       h('div', { class: 'reihe' }, h('span', { class: 'links' }), h('button', { class: 'knopf primaer', onclick: blattZu }, 'Fertig')));
@@ -171,12 +192,12 @@ function gewohnheitBlatt(g) {
   const ziel = h('input', { class: 'feld', type: 'number', inputmode: 'numeric', min: '1', value: String(g && g.ziel ? g.ziel : 8) });
   const zielZeile = h('label', null, 'Ziel pro Tag', ziel);
   const zeigeZiel = () => { zielZeile.hidden = art.value !== 'zaehler'; };
-  art.addEventListener('change', zeigeZiel);
+  K.an(art, 'change', zeigeZiel);
   zeigeZiel();
   const tage = new Set(g ? g.regeln[g.regeln.length - 1].tage : [0, 1, 2, 3, 4, 5, 6]);
   const chips = h('div', { class: 'tage-wahl' }, [1, 2, 3, 4, 5, 6, 0].map((t) => {
     const b = h('button', { class: tage.has(t) ? 'an' : '' }, WOCHENTAGE[t]);
-    b.addEventListener('click', () => { if (tage.has(t)) tage.delete(t); else tage.add(t); b.classList.toggle('an', tage.has(t)); });
+    K.an(b, 'click', () => { if (tage.has(t)) tage.delete(t); else tage.add(t); b.classList.toggle('an', tage.has(t)); });
     return b;
   }));
   const sichern = async () => {

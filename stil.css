@@ -150,3 +150,36 @@ nav { grid-template-columns: repeat(4, 1fr); }
 .archiv-zeile span { flex: 1; }
 .gew-zeile .gname { font-size: 16px; color: var(--text); max-width: none; }
 .gew-zeile.fertig .gname { color: var(--text2); }
+
+/* ---------- Weiche Übergänge ---------- */
+.kreis, .zaehler { transition: background-color .25s ease, border-color .25s ease, color .25s ease, transform .25s ease; }
+.kreis.frisch, .zaehler.frisch { animation: abhaken .48s cubic-bezier(.2, .8, .3, 1); }
+@keyframes abhaken {
+  0% { transform: scale(.7); }
+  45% { transform: scale(1.18); }
+  70% { transform: scale(.96); }
+  100% { transform: scale(1); }
+}
+.gname, .titel, .name, .lname { transition: color .3s ease; }
+.ring-wert { transition: stroke-dasharray .7s cubic-bezier(.22, 1, .36, 1), stroke-opacity .2s ease; }
+.zelle { transition: background-color .4s ease; }
+.segment button { transition: background-color .2s ease, color .2s ease, box-shadow .2s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .kreis.frisch, .zaehler.frisch { animation: none; }
+  .ring-wert, .zelle, .kreis, .zaehler { transition: none; }
+}
+
+/* Antippen fühlt sich an wie ein Knopf, der nachgibt */
+.gew-los, .zeile, .todo-text, .gknopf, .knopf, .link, .rund, .mini, nav button, .tage-wahl button { transition: transform .12s ease, background-color .2s ease, opacity .2s ease; }
+.gew-los:active, .zeile:active, .todo-text:active, .gknopf:active, .knopf:active, .link:active, .rund:active, .mini:active, .tage-wahl button:active { transform: scale(.97); }
+.kreis + .name, .todo-text { transition: color .3s ease; }
+/* Blatt gleitet von unten herein und wieder hinaus */
+#blatt:not([hidden]) { animation: blatt-grund .22s ease; }
+#blatt:not([hidden]) .blatt-box { animation: blatt-rein .34s cubic-bezier(.2, .9, .3, 1); }
+#blatt.zu { animation: blatt-grund-weg .2s ease forwards; }
+#blatt.zu .blatt-box { animation: blatt-raus .2s ease-in forwards; }
+@keyframes blatt-grund { from { background: rgba(0, 0, 0, 0); } }
+@keyframes blatt-grund-weg { to { background: rgba(0, 0, 0, 0); } }
+@keyframes blatt-rein { from { transform: translateY(100%); } }
+@keyframes blatt-raus { to { transform: translateY(100%); } }
+@media (prefers-reduced-motion: reduce) { #blatt, #blatt .blatt-box { animation: none !important; } }

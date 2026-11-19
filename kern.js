@@ -122,6 +122,49 @@
   }
 
   /* ---------- Darstellung (nur im Browser) ---------- */
+  // Ereignisse merken, damit morph() sie beim Abgleich auf das bestehende Element uebertragen kann.
+  function an(el, typ, fn, opt) {
+    (el._on || (el._on = [])).push([typ, fn, opt]);
+    el.addEventListener(typ, fn, opt);
+    return el;
+  }
+  // Statt den Inhalt jedes Mal neu zu bauen, wird der bestehende an den neuen Stand angeglichen.
+  // Elemente bleiben erhalten; nur geaenderte Klassen, Stile und Texte werden gesetzt.
+  // Dadurch laufen CSS-Uebergaenge (Ring fuellt sich, Haken blendet ein), statt dass alles neu "aufploppt".
+  function morph(a, b) {
+    if (a.nodeType !== b.nodeType || a.nodeName !== b.nodeName) { a.replaceWith(b); return b; }
+    if (a.nodeType === 3 || a.nodeType === 8) { if (a.data !== b.data) a.data = b.data; return a; }
+    if (a.nodeType !== 1 || a.getAttribute('data-k') !== b.getAttribute('data-k')) { a.replaceWith(b); return b; }
+    const warAn = a.classList.contains('an');
+    for (const at of [...a.attributes]) if (at.name !== 'style' && !b.hasAttribute(at.name)) a.removeAttribute(at.name);
+    for (const at of [...b.attributes]) if (at.name !== 'style' && a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value);
+    // Stile nur ueber das Stil-Objekt setzen: Die Sicherheitsregel der Seite (CSP) verbietet das style-Attribut per setAttribute.
+    if (a.style && a.style.cssText !== b.style.cssText) a.style.cssText = b.style.cssText;
+    // Frisch abgehakt: kurze Bestaetigungs-Animation, auch wenn gleich danach noch einmal abgeglichen wird.
+    if (a._frisch) a.classList.add('frisch');
+    if (!warAn && a.classList.contains('an')) {
+      a.classList.add('frisch');
+      clearTimeout(a._frisch);
+      a._frisch = setTimeout(() => { a._frisch = 0; a.classList.remove('frisch'); }, 520);
+    }
+    for (const [t, f, o] of a._on || []) a.removeEventListener(t, f, o);
+    for (const [t, f, o] of b._on || []) a.addEventListener(t, f, o);
+    a._on = b._on;
+    morphKinder(a, [...b.childNodes]);
+    if ((a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT') && a !== document.activeElement) {
+      if (a.value !== b.value) a.value = b.value;
+      if (a.checked !== b.checked) a.checked = b.checked;
+    }
+    return a;
+  }
+  function morphKinder(el, neue) {
+    const alte = [...el.childNodes];
+    neue.forEach((n, i) => { if (alte[i]) morph(alte[i], n); else el.append(n); });
+    for (let i = neue.length; i < alte.length; i++) alte[i].remove();
+  }
+  function morphInhalt(el, kinder) {
+    morphKinder(el, kinder.map((k) => (k && k.nodeType ? k : document.createTextNode(String(k)))));
+  }
   const SVG = 'http://www.w3.org/2000/svg';
   function svg(tag, attrs) { const e = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; }
   // Fortschrittsring. anteil 0..1, text in der Mitte, unter = Beschriftung darunter.
@@ -130,7 +173,8 @@
     const u = 2 * Math.PI * r;
     const s = svg('svg', { viewBox: '0 0 76 76', class: 'ring-svg' });
     s.append(svg('circle', { cx: 38, cy: 38, r, class: 'ring-spur' }));
-    const p = svg('circle', { cx: 38, cy: 38, r, class: 'ring-wert', 'stroke-dasharray': `${u * Math.max(0, Math.min(1, anteil))} ${u}`, transform: 'rotate(-90 38 38)' });
+    const p = svg('circle', { cx: 38, cy: 38, r, class: 'ring-wert', transform: 'rotate(-90 38 38)' });
+    p.style.strokeDasharray = `${(u * Math.max(0, Math.min(1, anteil))).toFixed(2)}px ${u.toFixed(2)}px`; // als Stil, damit der Uebergang greift
     if (!(anteil > 0)) p.setAttribute('stroke-opacity', '0'); // sonst bliebe bei 0 ein Punkt stehen
     s.append(p);
     const box = document.createElement('div');
@@ -148,6 +192,7 @@
   function raster({ wochen, heute, wert: wertVon, antippen, klein }) {
     const box = document.createElement('div');
     box.className = 'raster' + (klein ? ' klein' : '');
+    box.setAttribute('data-k', 'raster-' + wochen);
     const h = datum(heute);
     const versatz = (h.getDay() + 6) % 7; // Montag = 0
     const start = plusTage(heute, -versatz - (wochen - 1) * 7);
@@ -181,7 +226,7 @@
       if (a != null && a > 0) z.style.background = `color-mix(in srgb, var(--akzent) ${Math.round(28 + 72 * a)}%, transparent)`;
       const d = datum(tag);
       z.title = `${WT[d.getDay()]}, ${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}` + (a == null ? '' : ` · ${Math.round(a * 100)} %`);
-      z.addEventListener('click', () => antippen(tag));
+      an(z, 'click', () => antippen(tag));
       gitter.append(z);
     }
     const rechts = document.createElement('div');
@@ -191,6 +236,6 @@
     return box;
   }
 
-  const K = { GEBETE, WT, ymd, datum, plusTage, leer, normalisieren, faellig, tagGewohnheiten, ops, archivName, archivLeer, archivOps, gebeteIst, tagesAnteil, ring, raster };
+  const K = { an, morph, morphInhalt, neueId, GEBETE, WT, ymd, datum, plusTage, leer, normalisieren, faellig, tagGewohnheiten, ops, archivName, archivLeer, archivOps, gebeteIst, tagesAnteil, ring, raster };
   if (typeof module !== 'undefined' && module.exports) module.exports = K; else global.IndibatKern = K;
 }(typeof window !== 'undefined' ? window : globalThis));

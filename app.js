@@ -9,14 +9,15 @@ function h(tag, attr, ...kinder) {
   for (const [k, v] of Object.entries(attr || {})) {
     if (v == null || v === false) continue;
     if (k === 'class') e.className = v;
-    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (k.startsWith('on')) IndibatKern.an(e, k.slice(2), v);
     else if (k === 'value') e.value = v;
     else e.setAttribute(k, v === true ? '' : v);
   }
   for (const k of kinder.flat(Infinity)) if (k != null && k !== false) e.append(k);
   return e;
 }
-const fuelle = (el, ...kinder) => el.replaceChildren(...kinder.flat(Infinity).filter((k) => k != null && k !== false));
+// Inhalt angleichen statt ersetzen (siehe morph in kern.js): so laufen Uebergaenge weich.
+const fuelle = (el, ...kinder) => IndibatKern.morphInhalt(el, kinder.flat(Infinity).filter((k) => k != null && k !== false));
 const pad = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const tagVersetzt = (n) => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n); return d; };
@@ -33,13 +34,23 @@ function toast(text) {
   toastUhr = setTimeout(() => { t.hidden = true; }, 3500);
 }
 let blattNeu = null;
+let blattUhr = 0;
 function blatt(titel, ...inhalt) {
   blattNeu = null;
   const b = $('#blatt');
+  clearTimeout(blattUhr); b.classList.remove('zu');
   fuelle(b, h('div', { class: 'blatt-box' }, h('h3', null, titel), inhalt));
   b.hidden = false;
 }
-const blattZu = () => { blattNeu = null; $('#blatt').hidden = true; fuelle($('#blatt')); };
+// Schliessen mit kurzer Animation nach unten.
+const blattZu = () => {
+  blattNeu = null;
+  const b = $('#blatt');
+  if (b.hidden) return;
+  b.classList.add('zu');
+  clearTimeout(blattUhr);
+  blattUhr = setTimeout(() => { b.hidden = true; b.classList.remove('zu'); b.replaceChildren(); }, 200);
+};
 
 /* ================= Nextcloud (CalDAV / WebDAV) ================= */
 let konto = lager.lies('indibat-konto'); // { url, login, pass, user }
@@ -266,7 +277,7 @@ function todoZeile(listHref, t, mitListe) {
   const spaet = !t.erledigt && t.faellig && t.faellig < ymd(tagVersetzt(0));
   const liste = mitListe ? (daten.listen.find((l) => l.href === listHref) || {}).name : '';
   const meta = [datumText(t.faellig), t.zeit, liste].filter(Boolean).join(' · ');
-  return h('div', { class: 'todo' + (t.erledigt ? ' fertig' : '') },
+  return h('div', { class: 'todo' + (t.erledigt ? ' fertig' : ''), 'data-k': t.uid },
     h('button', { class: 'kreis' + (t.erledigt ? ' an' : ''), 'aria-label': t.erledigt ? 'Wieder öffnen' : 'Abhaken', onclick: () => umschalten(listHref, t) }, t.erledigt ? '✓' : ''),
     h('button', { class: 'todo-text', onclick: () => todoBlatt(listHref, t) },
       h('span', { class: 'titel' }, t.titel || '(ohne Titel)'),
@@ -343,7 +354,7 @@ function sichtAufgaben() {
     try { ersetze(filter, null, await speichern(filter, { titel, erledigt: false })); zeichne(); }
     catch (e) { eingabe.value = titel; toast('Nicht gespeichert: ' + e.message); }
   };
-  eingabe.addEventListener('keydown', (e) => { if (e.key === 'Enter') anlegen(); });
+  IndibatKern.an(eingabe, 'keydown', (e) => { if (e.key === 'Enter') anlegen(); });
   const erledigtZahl = alle.filter((t) => t.erledigt).length;
   return [
     h('div', { class: 'filter' }, listen.map((l) => h('button', { class: l.href === filter ? 'an' : '', onclick: () => { filter = l.href; lager.schreib('indibat-filter', filter); zeichne(); } }, l.name))),
@@ -456,7 +467,7 @@ function sichtEinrichtung() {
   const knopf = h('button', { class: 'knopf primaer' }, 'Verbinden');
   const meldung = h('p', { class: 'fehler', role: 'alert', hidden: true });
   const melde = (t) => { meldung.textContent = t; meldung.hidden = !t; };
-  knopf.addEventListener('click', async () => {
+  IndibatKern.an(knopf, 'click', async () => {
     let adresse = url.value.trim().replace(/\/+$/, '');
     melde('');
     if (!/^https:\/\//i.test(adresse)) { melde('Die Adresse muss mit https:// beginnen.'); return; }
