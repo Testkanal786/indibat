@@ -191,19 +191,19 @@
   // wert(tag) -> 0..1 oder null; antippen(tag) beim Klick.
   function raster({ wochen, heute, wert: wertVon, antippen, klein }) {
     const box = document.createElement('div');
-    box.className = 'raster' + (klein ? ' klein' : '');
-    box.setAttribute('data-k', 'raster-' + wochen);
+    box.className = 'kal' + (klein ? ' klein' : '');
+    box.setAttribute('data-k', 'kal-' + wochen);
     const h = datum(heute);
     const versatz = (h.getDay() + 6) % 7; // Montag = 0
     const start = plusTage(heute, -versatz - (wochen - 1) * 7);
     const zeilen = document.createElement('div');
-    zeilen.className = 'raster-tage';
+    zeilen.className = 'kal-tage';
     for (const t of ['Mo', '', 'Mi', '', 'Fr', '', 'So']) { const s = document.createElement('span'); s.textContent = t; zeilen.append(s); }
     const gitter = document.createElement('div');
-    gitter.className = 'raster-gitter';
+    gitter.className = 'kal-gitter';
     gitter.style.gridTemplateColumns = `repeat(${wochen}, 1fr)`;
     const monate = document.createElement('div');
-    monate.className = 'raster-monate';
+    monate.className = 'kal-monate';
     monate.style.gridTemplateColumns = `repeat(${wochen}, 1fr)`;
     const MON = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
     let letzterMonat = -1;
@@ -230,7 +230,7 @@
       gitter.append(z);
     }
     const rechts = document.createElement('div');
-    rechts.className = 'raster-rechts';
+    rechts.className = 'kal-rechts';
     rechts.append(monate, gitter);
     box.append(zeilen, rechts);
     return box;

@@ -156,7 +156,7 @@ function sichtTaeglich() {
       h('p', { class: 'klein' }, 'Je kräftiger ein Kästchen, desto mehr war erledigt. Antippen zum Nachtragen.'),
       h('div', { class: 'reihe' },
         archiviert.length ? h('button', { class: 'knopf links', onclick: archivBlatt }, `Archiv (${archiviert.length})`) : h('span', { class: 'links' }),
-        h('button', { class: 'knopf', onclick: () => { rasterJahr = !rasterJahr; zeichne(); if (rasterJahr) requestAnimationFrame(() => { const r = $('.raster'); if (r) r.scrollLeft = r.scrollWidth; }); } }, rasterJahr ? '12 Wochen' : 'Ganzes Jahr'))),
+        h('button', { class: 'knopf', onclick: () => { rasterJahr = !rasterJahr; zeichne(); if (rasterJahr) requestAnimationFrame(() => { const r = $('.kal'); if (r) r.scrollLeft = r.scrollWidth; }); } }, rasterJahr ? '12 Wochen' : 'Ganzes Jahr'))),
   ];
 }
 

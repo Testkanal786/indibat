@@ -541,7 +541,7 @@ const M = $('#inhalt');
 let wisch = null;
 M.addEventListener('touchstart', (e) => {
   const t = e.touches[0];
-  wisch = e.touches.length === 1 && konto && !e.target.closest('.filter, input, textarea, select, .raster') ? { x: t.clientX, y: t.clientY, t: Date.now(), quer: null, dx: 0 } : null;
+  wisch = e.touches.length === 1 && konto && !e.target.closest('.filter, input, textarea, select, .kal') ? { x: t.clientX, y: t.clientY, t: Date.now(), quer: null, dx: 0 } : null;
 }, { passive: true });
 M.addEventListener('touchmove', (e) => {
   if (!wisch) return;
