@@ -209,7 +209,9 @@ async function laden(leise) {
     } catch (e) { if (!leise && !e.netz) toast('Links konnten nicht geladen werden'); }
     let symbole = daten.symbole || {};
     try { symbole = JSON.parse(await dav('GET', `${wurzel()}/remote.php/dav/files/${encodeURIComponent(konto.user)}/Indibat/symbole.json`)); } catch { /* Symbole sind Zugabe */ }
-    daten = { listen, aufgaben, config, symbole, stand: Date.now() };
+    let extra = {};
+    try { extra = await taeglichLaden(); } catch (e) { if (!leise) toast('Täglich: ' + e.message); }
+    daten = { listen, aufgaben, config, symbole, taeglich: extra.taeglich || daten.taeglich, archiv: extra.archiv || daten.archiv, stand: Date.now() };
     merken();
   } catch (e) {
     if (!leise || e.status === 401) toast(e.message + (daten.stand ? ' – zeige den letzten Stand' : ''));
@@ -333,7 +335,7 @@ function sichtAufgaben() {
   for (const t of sichtbar) { const g = t.gruppe || ''; if (!gruppen.has(g)) gruppen.set(g, []); gruppen.get(g).push(t); }
   const namen = [...gruppen.keys()].sort((a, b) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b, 'de')));
   const ordnung = (a, b) => (a.erledigt - b.erledigt) || (a.faellig || '9999').localeCompare(b.faellig || '9999') || a.titel.localeCompare(b.titel, 'de');
-  const eingabe = h('input', { class: 'feld', placeholder: 'Neue Aufgabe', 'aria-label': 'Neue Aufgabe', enterkeyhint: 'done' });
+  const eingabe = h('input', { class: 'feld', placeholder: 'Neue Aufgabe', 'aria-label': 'Neue Aufgabe', enterkeyhint: 'done', autocapitalize: 'sentences' });
   const anlegen = async () => {
     const titel = eingabe.value.trim();
     if (!titel) return;
@@ -359,13 +361,13 @@ function todoBlatt(listHref, t, titelVor) {
   const neu = !t;
   const alt = t || { titel: titelVor || '', faellig: null, zeit: null, gruppe: '', notiz: '' };
   const listen = todoListen();
-  const titel = h('input', { class: 'feld', value: alt.titel });
+  const titel = h('input', { class: 'feld', value: alt.titel, autocapitalize: 'sentences' });
   const liste = neu && listen.length > 1 ? h('select', { class: 'feld' }, listen.map((l) => h('option', { value: l.href, selected: l.href === listHref }, l.name))) : null;
   const datum = h('input', { class: 'feld', type: 'date', value: alt.faellig || '' });
   const zeit = h('input', { class: 'feld', type: 'time', value: alt.zeit || '' });
   const bekannte = [...new Set(listen.flatMap((l) => daten.aufgaben[l.href] || []).map((x) => x.gruppe).filter(Boolean))].sort((x, y) => x.localeCompare(y, 'de'));
-  const gruppe = h('input', { class: 'feld', value: alt.gruppe || '', list: 'gruppen-liste', placeholder: 'z. B. Website' });
-  const notiz = h('textarea', { class: 'feld' });
+  const gruppe = h('input', { class: 'feld', value: alt.gruppe || '', list: 'gruppen-liste', placeholder: 'z. B. Website', autocapitalize: 'sentences' });
+  const notiz = h('textarea', { class: 'feld', autocapitalize: 'sentences' });
   notiz.value = alt.notiz || '';
   const sichern = async () => {
     if (!titel.value.trim()) { toast('Bitte einen Titel eintragen'); return; }
@@ -497,7 +499,7 @@ function kontoBlatt() {
 }
 
 /* ================= Rahmen ================= */
-const TITEL = { heute: 'Heute', aufgaben: 'Aufgaben', links: 'Links' };
+const TITEL = { heute: 'Heute', taeglich: 'Täglich', aufgaben: 'Aufgaben', links: 'Links' };
 function zeichne() {
   const eingerichtet = !!konto;
   document.querySelector('nav').hidden = !eingerichtet;
@@ -508,10 +510,10 @@ function zeichne() {
   const aktiv = document.activeElement;
   if (eingerichtet && sicht === 'aufgaben' && aktiv && aktiv.matches('.neu input') && aktiv.value) return; // Eingabe nicht wegreissen
   if (blattNeu && !$('#blatt').hidden) { const y = ($('.blatt-box') || {}).scrollTop || 0; blattNeu(); const box = $('.blatt-box'); if (box) box.scrollTop = y; }
-  fuelle($('#inhalt'), !eingerichtet ? sichtEinrichtung() : sicht === 'heute' ? sichtHeute() : sicht === 'aufgaben' ? sichtAufgaben() : sichtLinks());
+  fuelle($('#inhalt'), !eingerichtet ? sichtEinrichtung() : sicht === 'heute' ? sichtHeute() : sicht === 'taeglich' ? sichtTaeglich() : sicht === 'aufgaben' ? sichtAufgaben() : sichtLinks());
 }
 for (const b of document.querySelectorAll('nav button')) b.addEventListener('click', () => wechsle(b.dataset.sicht));
-const REIHE = ['heute', 'aufgaben', 'links'];
+const REIHE = ['heute', 'taeglich', 'aufgaben', 'links'];
 function wechsle(ziel) {
   const von = REIHE.indexOf(sicht);
   const nach = REIHE.indexOf(ziel);
@@ -528,7 +530,7 @@ const M = $('#inhalt');
 let wisch = null;
 M.addEventListener('touchstart', (e) => {
   const t = e.touches[0];
-  wisch = e.touches.length === 1 && konto && !e.target.closest('.filter, input, textarea, select') ? { x: t.clientX, y: t.clientY, t: Date.now(), quer: null, dx: 0 } : null;
+  wisch = e.touches.length === 1 && konto && !e.target.closest('.filter, input, textarea, select, .raster') ? { x: t.clientX, y: t.clientY, t: Date.now(), quer: null, dx: 0 } : null;
 }, { passive: true });
 M.addEventListener('touchmove', (e) => {
   if (!wisch) return;
