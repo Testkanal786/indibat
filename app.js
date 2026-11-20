@@ -371,6 +371,9 @@ function gebetsKarte() {
   const heute = ymd(tagVersetzt(0));
   const jetzt = new Date();
   const liste = gebeteAm(heute).map((t) => gebetInfo(t, jetzt));
+  // „offen“ ist nur das zuletzt faellige Gebet; fruehere unerledigte gelten als „verpasst“ (blasser, gestrichelt).
+  const zuletzt = [...liste].reverse().find((g) => g.wann <= jetzt);
+  for (const g of liste) if (g.zustand === 'offen' && g !== zuletzt) g.zustand = 'verpasst';
   if (!gebetsHref() || !liste.length) {
     return h('section', { class: 'band-karte' }, h('p', { class: 'kopf' }, 'Gebete'),
       h('p', { class: 'leer' }, 'Für heute liegen keine Gebetszeiten in der Nextcloud. Der Laptop trägt sie 14 Tage im Voraus ein – starte Indibat dort einmal.'));

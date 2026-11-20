@@ -317,3 +317,7 @@ nav button.an { color: var(--akzent); font-weight: 700; }
 .kreis.an { background: var(--akzent); border-color: var(--akzent); }
 @media (prefers-reduced-motion: reduce) { .ansicht, .u-vorbei, .gk.frisch, .rund.dreht svg { animation: none; } .gk, .dr-wert { transition: none; } }
 .band-karte #countdown { color: inherit; margin: 0; }
+/* Verpasste Gebete (früher fällig, nicht abgehakt): blasser und gestrichelt, nur das aktuelle ist kräftig gold. */
+.gk.gk-verpasst { border-style: dashed; border-color: rgba(244, 213, 141, .5); color: rgba(244, 213, 141, .7); }
+.u-gebet.u-verpasst circle { fill: var(--band); stroke: rgba(244, 213, 141, .55); stroke-dasharray: 3 3; }
+.u-gross { font-size: 34px; }
