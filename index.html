@@ -4,8 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https:; img-src 'self' data:; style-src 'self'; script-src 'self'">
-<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#101014" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#0F5A47">
 <meta name="robots" content="noindex">
 <title>Indibat</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -15,16 +14,16 @@
 </head>
 <body>
 <header>
-  <h1 id="titel">Heute</h1>
-  <button id="btn-neu-laden" class="rund" title="Aktualisieren" aria-label="Aktualisieren">↻</button>
-  <button id="btn-konto" class="rund" title="Konto" aria-label="Konto">⚙</button>
+  <div id="kopftext"><div id="datum"></div><h1 id="titel">Heute</h1></div>
+  <button id="btn-neu-laden" class="rund" title="Aktualisieren" aria-label="Aktualisieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+  <button id="btn-konto" class="rund" title="Konto" aria-label="Konto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.2-3.5 4-5 7-5s5.8 1.5 7 5"/></svg></button>
 </header>
 <main id="inhalt"></main>
 <nav>
-  <button data-sicht="heute" class="an">Heute</button>
-  <button data-sicht="taeglich">Täglich</button>
-  <button data-sicht="aufgaben">Aufgaben</button>
-  <button data-sicht="links">Links</button>
+  <button data-sicht="heute" class="an"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 11l8-6 8 6v8.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5z"/></svg><span>Heute</span></button>
+  <button data-sicht="taeglich"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/></svg><span>Täglich</span></button>
+  <button data-sicht="aufgaben"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="5" height="5" rx="1.5"/><rect x="3" y="15" width="5" height="5" rx="1.5"/><path d="M11 6.5h10M11 17.5h10"/></svg><span>Aufgaben</span></button>
+  <button data-sicht="links"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>Links</span></button>
 </nav>
 <div id="blatt" hidden></div>
 <div id="toast" hidden></div>

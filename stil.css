@@ -183,3 +183,137 @@ nav { grid-template-columns: repeat(4, 1fr); }
 @keyframes blatt-rein { from { transform: translateY(100%); } }
 @keyframes blatt-raus { to { transform: translateY(100%); } }
 @media (prefers-reduced-motion: reduce) { #blatt, #blatt .blatt-box { animation: none !important; } }
+
+
+/* ======================================================================
+   Design A1 „Klar · Tiefe“ (20.11.2026) – wie am Laptop
+   Grünes Kopfband, Gebetskarte (Kreise oder Uhr) mit den letzten 7 Tagen,
+   goldene Täglich-Karte mit Doppelring, Leiste unten mit Symbolen.
+   ====================================================================== */
+:root {
+  --akzent: #0F7B5F; --band: #0F5A47; --band-text2: #CFE5DC; --band-gold: #F4D58D; --band-schwach: #4E8C7A;
+  --text: #17201C; --text2: #5D6A63; --grund: #EEF1EE; --karte: #FFFFFF; --rand: rgba(16, 40, 32, .07); --feld: #FFFFFF;
+  --schatten: 0 1px 2px rgba(16, 40, 32, .05), 0 10px 26px rgba(16, 40, 32, .07);
+  --gold: #C98A12; --gold-karte: #F8EDD3; --gold-text: #3A2C0B; --gold-text2: #6B5520; --gold-spur: #EADFC4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --akzent: #2FA37F; --band: #0E4F3F; --text: #EDF2EF; --text2: rgba(237, 242, 239, .62); --grund: #101513; --karte: #1A211E; --rand: rgba(255, 255, 255, .07); --feld: #232C28;
+    --schatten: 0 10px 26px rgba(0, 0, 0, .35);
+    --gold: #E0A63A; --gold-karte: #2A2416; --gold-text: #F3E3BF; --gold-text2: #C9B383; --gold-spur: #4A3F25;
+  }
+}
+
+/* Kopfband */
+header { background: var(--band); color: #fff; padding: calc(env(safe-area-inset-top) + 16px) 16px 14px; border-radius: 0 0 26px 26px; box-shadow: 0 10px 26px rgba(15, 90, 71, .22); position: relative; z-index: 2; }
+body.auf-heute header { border-radius: 0; box-shadow: none; }
+#kopftext { flex: 1; min-width: 0; }
+#datum { font-size: 13px; color: var(--band-text2); }
+header h1 { font-size: 26px; font-weight: 800; color: #fff; }
+.rund { width: 40px; height: 40px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .12); color: #fff; display: grid; place-items: center; }
+.rund svg { width: 19px; height: 19px; }
+.rund.dreht svg { animation: drehen .9s linear infinite; }
+@keyframes drehen { to { transform: rotate(360deg); } }
+main { padding: 14px 14px 20px; }
+body.auf-heute main { padding-top: 0; }
+
+/* Leiste unten */
+nav { background: var(--karte); border-top: 1px solid var(--rand); }
+nav button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 0 8px; font-size: 11.5px; color: var(--text2); }
+nav button svg { width: 23px; height: 23px; }
+nav button.an { color: var(--akzent); font-weight: 700; }
+
+/* Karten */
+.karte { border: 0; border-radius: 22px; box-shadow: var(--schatten); }
+.karten-kopf { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.karten-kopf .kopf { margin: 0; }
+.textlink { font-size: 13px; font-weight: 700; color: var(--akzent); padding: 4px 6px; border-radius: 8px; }
+.karte.gold { background: var(--gold-karte); color: var(--gold-text); }
+.karte.gold .kopf, .karte.gold .textlink { color: var(--gold-text2); }
+.karte.gold .gew-zeile + .gew-zeile { border-top-color: rgba(107, 85, 32, .15); }
+.karte.gold .kreis, .karte.gold .zaehler { border-color: var(--gold-text2); }
+.karte.gold .kreis.an, .karte.gold .zaehler.an { background: var(--gold); border-color: var(--gold); }
+.karte.gold .gname { color: var(--gold-text); }
+.karte.gold .gew-zeile.fertig .gname { color: var(--gold-text2); text-decoration: line-through; }
+.karte.gold .mini, .karte.gold .leer { color: var(--gold-text2); }
+
+/* Gebetskarte: grünes Band, das unter dem Kopf weiterläuft */
+.band-karte { background: var(--band); color: #fff; margin: 0 -14px 14px; padding: 4px 18px 18px; border-radius: 0 0 30px 30px; box-shadow: 0 12px 30px rgba(15, 90, 71, .22); }
+.band-karte .kopf, .band-karte .leer { color: var(--band-text2); }
+.band-kopf { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--band-text2); padding: 10px 0 8px; border-top: 1px solid rgba(255, 255, 255, .12); }
+.ansicht-wahl { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: rgba(255, 255, 255, .08); }
+.ansicht-wahl button { width: 34px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: #fff; opacity: .7; transition: background-color .2s ease, opacity .2s ease; }
+.ansicht-wahl button.an { background: rgba(255, 255, 255, .24); opacity: 1; }
+.ansicht-wahl svg { width: 16px; height: 16px; }
+.ansicht { animation: ansicht-rein .45s cubic-bezier(.2, .8, .2, 1); }
+@keyframes ansicht-rein { from { opacity: 0; transform: scale(.97); } }
+.band-karte .naechstes .name { font-size: 34px; font-weight: 800; color: #fff; }
+.band-karte .naechstes .uhr { font-size: 26px; font-weight: 500; color: #fff; }
+.band-karte .status { font-size: 15px; font-weight: 600; color: var(--band-gold); margin: 4px 0 14px; font-variant-numeric: tabular-nums; }
+.gebet-kreise { display: flex; justify-content: space-between; }
+.gk-knopf { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 52px; }
+.gk { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--band-schwach); color: var(--band-text2); display: grid; place-items: center; font-size: 14px; font-weight: 700;
+  transition: background-color .3s ease, border-color .3s ease, color .3s ease, transform .2s ease; }
+.gk-knopf:active .gk { transform: scale(.92); }
+.gk.gk-fertig { background: #fff; border-color: #fff; color: var(--band); }
+.gk.gk-offen { border-color: var(--band-gold); color: var(--band-gold); }
+.gk.frisch { animation: abhaken .48s cubic-bezier(.2, .8, .3, 1); }
+.gk-zeit { font-size: 12px; color: var(--band-text2); font-variant-numeric: tabular-nums; }
+.band-karte .tageshinweis { margin-top: 12px; padding: 8px 12px; border-radius: 12px; background: rgba(255, 255, 255, .1); font-size: 14px; }
+
+/* Gebetsuhr */
+.gebetsuhr { display: block; width: 100%; max-width: 340px; height: auto; margin: 0 auto; overflow: visible; }
+.gebetsuhr circle, .gebetsuhr path { fill: none; }
+.u-punkte { stroke: var(--band-schwach); stroke-width: 1.5; stroke-dasharray: 2 7; }
+.u-spur { stroke: #1C6B57; stroke-width: 15; }
+.u-tag { stroke: #2F7E69; stroke-width: 15; }
+.u-vorbei { stroke: var(--band-gold); stroke-width: 15; stroke-linecap: round; stroke-dasharray: 1; animation: bogen 1.6s cubic-bezier(.2, .8, .2, 1); }
+@keyframes bogen { from { stroke-dashoffset: 1; } }
+.u-striche { stroke: #3F8A75; stroke-width: 6; stroke-dasharray: 1.2 22.9; }
+.u-gebet circle { stroke: var(--band); stroke-width: 2.5; transition: fill .3s ease, stroke .3s ease; }
+.u-gebet.u-fertig circle { fill: #fff; }
+.u-gebet.u-offen circle { fill: var(--band); stroke: var(--band-gold); stroke-width: 3.5; }
+.u-gebet.u-spaeter circle { fill: var(--band); stroke: #7FB3A3; }
+.u-name { font-size: 20px; font-weight: 700; fill: #fff; }
+.u-zeit { font-size: 17px; fill: var(--band-text2); }
+.u-offen .u-name, .u-offen .u-zeit { fill: var(--band-gold); }
+.u-jetzt { fill: #fff; stroke: var(--band); stroke-width: 2; }
+.u-klein { font-size: 16px; fill: var(--band-text2); }
+.u-gross { font-size: 42px; font-weight: 800; fill: #fff; }
+.u-count { font-size: 17px; font-weight: 600; fill: var(--band-gold); }
+
+/* Letzte 7 Tage */
+.wochenraster { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .16); text-align: left; color: inherit; }
+.wr-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12px; color: var(--band-text2); }
+.wr-kopf span:first-child { font-weight: 700; font-size: 12.5px; }
+.wr-spalten { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.wspalte { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 5px 0; border-radius: 10px; border: 1.5px solid transparent; }
+.wspalte.heute { border-color: #fff; }
+.wtagname { font-size: 11px; font-weight: 600; color: var(--band-text2); }
+.wspalte.heute .wtagname { color: #fff; font-weight: 800; }
+.wk { width: 8px; height: 8px; border-radius: 2.5px; background: rgba(255, 255, 255, .1); transition: background-color .4s ease; }
+.wk.an { background: #fff; }
+.wk.fehlt { background: var(--band-schwach); opacity: .55; }
+.wk.offen { background: var(--band-gold); }
+
+/* Doppelring */
+.ringe { justify-content: flex-start; align-items: center; gap: 16px; padding: 4px 0 10px; }
+.doppelring { width: 92px; height: 92px; flex: none; }
+.doppelring circle { fill: none; stroke-width: 9; stroke-linecap: round; }
+.dr-spur { stroke: var(--gold-spur); }
+.dr-gebete { stroke: var(--akzent); }
+.dr-gew { stroke: var(--gold); }
+.dr-wert { transition: stroke-dasharray .7s cubic-bezier(.22, 1, .36, 1), stroke-opacity .2s ease; }
+.dr-legende { display: flex; flex-direction: column; gap: 10px; }
+.dr-zeile { display: flex; flex-direction: column; }
+.dr-zahl { font-size: 22px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.dr-name { font-size: 12.5px; color: var(--gold-text2); display: flex; align-items: center; gap: 5px; margin-top: 3px; }
+.dr-name::before { content: ''; width: 8px; height: 8px; border-radius: 50%; }
+.dr-n-gebete::before { background: var(--akzent); }
+.dr-n-gew::before { background: var(--gold); }
+
+/* Übrige Elemente in den neuen Farben */
+.filter button { border: 0; box-shadow: var(--schatten); }
+.kreis.an { background: var(--akzent); border-color: var(--akzent); }
+@media (prefers-reduced-motion: reduce) { .ansicht, .u-vorbei, .gk.frisch, .rund.dreht svg { animation: none; } .gk, .dr-wert { transition: none; } }
+.band-karte #countdown { color: inherit; margin: 0; }

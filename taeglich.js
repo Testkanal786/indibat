@@ -105,13 +105,39 @@ async function gebetSetzen(tag, key) {
 }
 
 /* ---------- Bausteine ---------- */
+// Design A1: ein Doppelring (aussen Gebete, innen Gewohnheiten) mit den Zahlen daneben.
+const DR_NS = 'http://www.w3.org/2000/svg';
+function drKreis(r, anteil, klasse) {
+  const c = document.createElementNS(DR_NS, 'circle');
+  for (const [k, v] of Object.entries({ cx: 48, cy: 48, r, class: klasse, transform: 'rotate(-90 48 48)' })) c.setAttribute(k, v);
+  if (anteil != null) {
+    const u = 2 * Math.PI * r;
+    c.style.strokeDasharray = `${(u * Math.max(0, Math.min(1, anteil))).toFixed(2)}px ${u.toFixed(2)}px`; // als Stil, damit der Übergang greift
+    if (!(anteil > 0)) c.setAttribute('stroke-opacity', '0');
+  }
+  return c;
+}
 function ringe() {
   const heute = heuteT();
   const gi = K.gebeteIst(gebeteWerte(heute));
   const gw = K.tagGewohnheiten(tdaten(), heute);
-  return h('div', { class: 'ringe' },
-    K.ring(gi / 5, `${gi}/5`, 'Gebete', 'r-gebete'),
-    K.ring(gw.soll ? gw.ist / gw.soll : 0, gw.soll ? `${gw.liste.filter((e) => e.anteil >= 1).length}/${gw.soll}` : '–', 'Gewohnheiten', 'r-gew'));
+  const s = document.createElementNS(DR_NS, 'svg');
+  s.setAttribute('viewBox', '0 0 96 96');
+  s.setAttribute('class', 'doppelring');
+  s.append(drKreis(42, null, 'dr-spur'), drKreis(42, gi / 5, 'dr-wert dr-gebete'), drKreis(29, null, 'dr-spur'), drKreis(29, gw.soll ? gw.ist / gw.soll : 0, 'dr-wert dr-gew'));
+  return h('div', { class: 'ringe' }, s,
+    h('span', { class: 'dr-legende' },
+      h('span', { class: 'dr-zeile' }, h('span', { class: 'dr-zahl' }, `${gi}/5`), h('span', { class: 'dr-name dr-n-gebete' }, 'Gebete')),
+      h('span', { class: 'dr-zeile' }, h('span', { class: 'dr-zahl' }, gw.soll ? `${gw.liste.filter((e) => e.anteil >= 1).length}/${gw.soll}` : '–'), h('span', { class: 'dr-name dr-n-gew' }, 'Gewohnheiten'))));
+}
+// Goldene Karte für „Heute“: Doppelring und die Gewohnheiten von heute.
+function taeglichKarte() {
+  const heute = heuteT();
+  const gw = K.tagGewohnheiten(tdaten(), heute);
+  return h('section', { class: 'karte gold' },
+    h('div', { class: 'karten-kopf' }, h('span', { class: 'kopf' }, 'Täglich'), h('button', { class: 'textlink', onclick: () => wechsle('taeglich') }, '12 Wochen ›')),
+    ringe(),
+    gw.liste.length ? gw.liste.map((e) => gewohnheitZeile(e, heute)) : h('p', { class: 'leer' }, 'Heute ist keine Gewohnheit fällig.'));
 }
 // Zeile einer Gewohnheit. Antippen hakt ab oder zählt hoch; beim Zähler zählt gedrückt halten oder "−" eins herunter.
 function gewohnheitZeile(e, tag) {
@@ -145,7 +171,7 @@ function sichtTaeglich() {
   const raster = K.raster({ wochen: rasterJahr ? 53 : 12, heute, klein: rasterJahr, antippen: tagBlatt,
     wert: (tag) => K.tagesAnteil(rasterModus, gebeteWerte(tag), K.tagGewohnheiten(d, tag)) });
   return [
-    h('div', { class: 'karte' }, ringe(),
+    h('div', { class: 'karte gold' }, ringe(),
       gw.liste.length ? gw.liste.map((e) => gewohnheitZeile(e, heute))
         : h('p', { class: 'leer mitte' }, aktiv.length ? 'Heute ist keine Gewohnheit fällig.' : 'Noch keine Gewohnheit angelegt.'),
       h('div', { class: 'reihe' }, h('button', { class: 'knopf primaer voll', onclick: () => gewohnheitBlatt(null) }, '+ Gewohnheit'))),
@@ -228,3 +254,6 @@ function archivBlatt() {
   };
   zeichnen();
 }
+
+// taeglich.js wird nach app.js geladen: einmal neu zeichnen, damit die Täglich-Karte auf „Heute“ sofort erscheint.
+zeichne();

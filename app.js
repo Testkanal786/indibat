@@ -283,40 +283,134 @@ function todoZeile(listHref, t, mitListe) {
       h('span', { class: 'titel' }, t.titel || '(ohne Titel)'),
       meta && h('span', { class: 'meta' + (spaet ? ' spaet' : '') }, meta)));
 }
+/* ---------- Design A1: Gebetskarte mit Kreisen oder Gebetsuhr, Raster der letzten 7 Tage ---------- */
+let gebetAnsicht = lager.lies('indibat-gebet-ansicht') || 'kreise';
+const SVGNS = 'http://www.w3.org/2000/svg';
+function sv(tag, attr, ...kinder) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attr || {})) if (v != null && v !== false) e.setAttribute(k, v);
+  for (const c of kinder.flat()) if (c != null && c !== false) e.append(c.nodeType ? c : document.createTextNode(String(c)));
+  return e;
+}
+const ANSICHT_SYM = {
+  kreise: () => sv('svg', { viewBox: '0 0 24 24', fill: 'currentColor' }, sv('circle', { cx: 4, cy: 12, r: 2.6 }), sv('circle', { cx: 12, cy: 12, r: 2.6 }), sv('circle', { cx: 20, cy: 12, r: 2.6 })),
+  uhr: () => sv('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2.2, 'stroke-linecap': 'round' }, sv('circle', { cx: 12, cy: 12, r: 8.5 }), sv('path', { d: 'M12 7.5V12l3 2' })),
+};
+// Gebet aus der Aufgabenliste "Gebete": Schluessel steht am Ende der UID (…-fajr).
+const gebetInfo = (t, jetzt) => ({ t, key: t.uid.split('-').pop(), name: t.titel, zeit: t.zeit, wann: zeitpunkt(t),
+  zustand: t.erledigt ? 'fertig' : zeitpunkt(t) <= jetzt ? 'offen' : 'spaeter' });
+
+// Gebetsuhr: 24-Stunden-Zifferblatt, Mittag oben; goldener Bogen ab Fajr bis jetzt.
+function gebetsuhr(liste, naechstes, jetzt) {
+  const C = 150, R = 110;
+  const winkel = (min) => (min / 1440) * 360 + 90;
+  const punkt = (r, w) => [C + r * Math.cos((w * Math.PI) / 180), C + r * Math.sin((w * Math.PI) / 180)];
+  const minVon = (d) => d.getHours() * 60 + d.getMinutes();
+  const bogen = (von, bis) => {
+    const [x1, y1] = punkt(R, winkel(von)); const [x2, y2] = punkt(R, winkel(bis));
+    const gross = ((bis - von + 1440) % 1440) / 4 > 180 ? 1 : 0;
+    return `M${x1.toFixed(1)} ${y1.toFixed(1)} A${R} ${R} 0 ${gross} 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+  };
+  const jetztMin = minVon(jetzt);
+  const fajr = minVon(liste[0].wann);
+  const letztes = minVon(liste[liste.length - 1].wann);
+  const maghrib = liste[3] ? minVon(liste[3].wann) : letztes;
+  const teile = [
+    sv('circle', { cx: C, cy: C, r: 140, class: 'u-punkte' }),
+    sv('circle', { cx: C, cy: C, r: R, class: 'u-spur' }),
+    sv('path', { d: bogen(fajr, maghrib), class: 'u-tag' }),
+    jetztMin > fajr && sv('path', { d: bogen(fajr, Math.min(jetztMin, letztes + 60)), class: 'u-vorbei', pathLength: 1 }),
+    sv('circle', { cx: C, cy: C, r: 92, class: 'u-striche' }),
+  ];
+  // Beschriftungen nah beieinander liegender Gebete (freitags Jumu'a/Asr) auseinanderruecken.
+  const schrift = liste.map((g) => winkel(minVon(g.wann)));
+  for (let i = 1; i < schrift.length; i++) if (schrift[i] - schrift[i - 1] < 26) schrift[i] = schrift[i - 1] + 26;
+  liste.forEach((g, i) => {
+    const [x, y] = punkt(R, winkel(minVon(g.wann)));
+    const [lx, ly] = punkt(136, schrift[i]);
+    const anker = lx < C - 20 ? 'end' : lx > C + 20 ? 'start' : 'middle';
+    const oben = ly < 40;
+    teile.push(sv('g', { class: 'u-gebet u-' + g.zustand, 'data-k': g.key },
+      sv('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: g.zustand === 'fertig' ? 11 : 10 }),
+      sv('text', { x: lx.toFixed(1), y: (oben ? ly - 18 : ly - 4).toFixed(1), 'text-anchor': anker, class: 'u-name' }, g.name),
+      sv('text', { x: lx.toFixed(1), y: (oben ? ly + 1 : ly + 15).toFixed(1), 'text-anchor': anker, class: 'u-zeit' }, g.zeit)));
+  });
+  const [nx, ny] = punkt(R, winkel(jetztMin));
+  teile.push(sv('circle', { cx: nx.toFixed(1), cy: ny.toFixed(1), r: 7, class: 'u-jetzt' }));
+  if (naechstes) {
+    teile.push(sv('text', { x: C, y: 128, 'text-anchor': 'middle', class: 'u-klein' }, 'als Nächstes'));
+    teile.push(sv('text', { x: C, y: 166, 'text-anchor': 'middle', class: 'u-gross' }, naechstes.titel));
+    teile.push(sv('text', { x: C, y: 192, 'text-anchor': 'middle', class: 'u-count', id: 'countdown' }, restText(zeitpunkt(naechstes))));
+  }
+  return sv('svg', { viewBox: '-84 -40 468 340', class: 'gebetsuhr', role: 'img', 'aria-label': 'Gebetsuhr' }, teile);
+}
+
+// Raster der letzten 7 Tage (je fuenf Kaestchen); Antippen oeffnet das Nachtragen.
+function wochenRaster(jetzt) {
+  let ist = 0, soll = 0;
+  const spalten = [];
+  for (let i = -6; i <= 0; i++) {
+    const d = tagVersetzt(i);
+    const liste = gebeteAm(ymd(d)).map((t) => gebetInfo(t, jetzt));
+    const faellige = liste.filter((g) => g.zustand !== 'spaeter');
+    const zuletzt = faellige[faellige.length - 1];
+    const felder = (liste.length ? liste : [0, 1, 2, 3, 4].map(() => null)).map((g) => {
+      if (!g) return h('span', { class: 'wk' });
+      if (g.zustand !== 'spaeter') { soll++; if (g.zustand === 'fertig') ist++; }
+      const offenJetzt = i === 0 && g === zuletzt && g.zustand === 'offen';
+      return h('span', { class: 'wk' + (g.zustand === 'fertig' ? ' an' : offenJetzt ? ' offen' : g.zustand === 'offen' ? ' fehlt' : '') });
+    });
+    spalten.push(h('span', { class: 'wspalte' + (i === 0 ? ' heute' : '') }, h('span', { class: 'wtagname' }, WOCHENTAGE[d.getDay()]), felder));
+  }
+  return h('button', { class: 'wochenraster', 'aria-label': 'Gebete der letzten 7 Tage ansehen und nachtragen', onclick: gebeteBlatt },
+    h('span', { class: 'wr-kopf' }, h('span', null, 'Letzte 7 Tage'), h('span', null, `${ist} von ${soll} · antippen zum Nachtragen`)),
+    h('span', { class: 'wr-spalten' }, spalten));
+}
+
+function gebetsKarte() {
+  const heute = ymd(tagVersetzt(0));
+  const jetzt = new Date();
+  const liste = gebeteAm(heute).map((t) => gebetInfo(t, jetzt));
+  if (!gebetsHref() || !liste.length) {
+    return h('section', { class: 'band-karte' }, h('p', { class: 'kopf' }, 'Gebete'),
+      h('p', { class: 'leer' }, 'Für heute liegen keine Gebetszeiten in der Nextcloud. Der Laptop trägt sie 14 Tage im Voraus ein – starte Indibat dort einmal.'));
+  }
+  const naechstes = naechstesGebet();
+  const offen = [...liste].reverse().find((g) => g.zustand !== 'spaeter');
+  const umschalter = h('div', { class: 'ansicht-wahl' }, ['kreise', 'uhr'].map((a) => h('button', {
+    class: gebetAnsicht === a ? 'an' : '', 'aria-label': a === 'kreise' ? 'Gebete als Kreise' : 'Gebete als Uhr',
+    onclick: () => { gebetAnsicht = a; lager.schreib('indibat-gebet-ansicht', a); zeichne(); } }, ANSICHT_SYM[a]())));
+  const ansicht = gebetAnsicht === 'uhr'
+    ? h('div', { class: 'ansicht', 'data-k': 'uhr', onclick: (e) => {
+      const g = e.target.closest && e.target.closest('.u-gebet');
+      const treffer = g && liste.find((x) => x.key === g.getAttribute('data-k'));
+      if (treffer) umschalten(gebetsHref(), treffer.t);
+    } }, gebetsuhr(liste, naechstes, jetzt))
+    : h('div', { class: 'ansicht', 'data-k': 'kreise' },
+      naechstes ? [h('div', { class: 'naechstes' }, h('span', { class: 'name' }, naechstes.titel), h('span', { class: 'uhr' }, naechstes.zeit)),
+        h('p', { class: 'status' }, h('span', { id: 'countdown' }, restText(zeitpunkt(naechstes))), offen && offen.zustand === 'offen' ? ` · ${offen.name} offen` : '')]
+        : h('p', { class: 'status' }, 'Keine weiteren Zeiten eingetragen.'),
+      h('div', { class: 'gebet-kreise' }, liste.map((g) => h('button', { class: 'gk-knopf', 'data-k': g.key, 'aria-label': `${g.name} ${g.zeit}`, onclick: () => umschalten(gebetsHref(), g.t) },
+        h('span', { class: 'gk gk-' + g.zustand + (g.zustand === 'fertig' ? ' an' : '') }, g.name.charAt(0)), h('span', { class: 'gk-zeit' }, g.zeit)))));
+  return h('section', { class: 'band-karte' },
+    h('div', { class: 'band-kopf' }, h('span', null, 'Nächstes Gebet · Wolfhagen'), umschalter),
+    ansicht,
+    new Date().getDay() === 4 && h('p', { class: 'tageshinweis' }, 'Heute Abend ist Dhikr.'),
+    wochenRaster(jetzt));
+}
+
 function sichtHeute() {
   const heute = ymd(tagVersetzt(0));
-  const liste = gebeteAm(heute);
-  const naechstes = naechstesGebet();
-  const jetzt = new Date();
-  const laufend = [...liste].reverse().find((t) => zeitpunkt(t) <= jetzt);
-  const out = [];
-  if (!gebetsHref() || !liste.length) {
-    out.push(h('div', { class: 'karte' }, h('p', { class: 'kopf' }, 'Gebete'),
-      h('p', { class: 'leer' }, 'Für heute liegen keine Gebetszeiten in der Nextcloud. Der Laptop trägt sie 14 Tage im Voraus ein – starte Indibat dort einmal.')));
-  } else {
-    const woche = [];
-    for (let i = -6; i <= 0; i++) {
-      const d = tagVersetzt(i);
-      const g = gebeteAm(ymd(d));
-      woche.push(h('div', { class: 'tag' + (i === 0 ? ' heute' : '') }, WOCHENTAGE[d.getDay()],
-        h('div', { class: 'punkte' }, g.length ? g.map((t) => h('span', { class: 'punkt' + (t.erledigt ? ' an' : '') })) : h('span', { class: 'punkt' }))));
-    }
-    out.push(h('div', { class: 'karte' },
-      h('p', { class: 'kopf' }, 'Nächstes Gebet'),
-      naechstes ? [h('div', { class: 'naechstes' }, h('span', { class: 'name' }, naechstes.titel), h('span', { class: 'uhr' }, naechstes.zeit)),
-        h('p', { id: 'countdown' }, restText(zeitpunkt(naechstes)))] : h('p', { class: 'leer' }, 'Keine weiteren Zeiten eingetragen.'),
-      liste.map((t) => h('button', { class: 'zeile' + (t.erledigt ? ' fertig' : '') + (laufend && t.uid === laufend.uid ? ' jetzt' : ''), onclick: () => umschalten(gebetsHref(), t) },
-        h('span', { class: 'kreis' + (t.erledigt ? ' an' : '') }, t.erledigt ? '✓' : ''), h('span', { class: 'name' }, t.titel), h('span', { class: 'zeit' }, t.zeit))),
-      h('button', { class: 'woche', 'aria-label': 'Gebete der letzten Tage öffnen', onclick: gebeteBlatt }, woche),
-      h('p', { class: 'klein mitte' }, 'Antippen, um vergangene Tage nachzutragen')));
-    if (new Date().getDay() === 4) out.push(h('div', { class: 'karte' }, h('p', { class: 'kopf' }, 'Donnerstag'), h('p', null, 'Heute Abend ist Dhikr.')));
-  }
   const faellig = [];
   for (const l of todoListen()) for (const t of daten.aufgaben[l.href] || []) if (!t.erledigt && t.faellig && t.faellig <= heute) faellig.push([l.href, t]);
   faellig.sort((a, b) => a[1].faellig.localeCompare(b[1].faellig));
-  out.push(h('div', { class: 'karte' }, h('p', { class: 'kopf' }, 'Heute fällig'),
-    faellig.length ? faellig.map(([href, t]) => todoZeile(href, t, true)) : h('p', { class: 'leer' }, 'Nichts fällig.')));
-  return out;
+  return [
+    gebetsKarte(),
+    typeof taeglichKarte === 'function' ? taeglichKarte() : null,
+    h('div', { class: 'karte' }, h('div', { class: 'karten-kopf' }, h('span', { class: 'kopf' }, 'Heute fällig'),
+      h('button', { class: 'textlink', onclick: () => wechsle('aufgaben') }, 'Alle ›')),
+    faellig.length ? faellig.map(([href, t]) => todoZeile(href, t, true)) : h('p', { class: 'leer' }, 'Nichts fällig.')),
+  ];
 }
 
 function gebeteBlatt() {
@@ -517,6 +611,9 @@ function zeichne() {
   $('#btn-neu-laden').hidden = !eingerichtet;
   $('#btn-konto').hidden = !eingerichtet;
   $('#titel').textContent = eingerichtet ? TITEL[sicht] : 'Indibat';
+  $('#datum').textContent = new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+  // Auf „Heute“ geht das grüne Kopfband nahtlos in die Gebetskarte über.
+  document.body.classList.toggle('auf-heute', eingerichtet && sicht === 'heute');
   for (const b of document.querySelectorAll('nav button')) b.classList.toggle('an', b.dataset.sicht === sicht);
   const aktiv = document.activeElement;
   if (eingerichtet && sicht === 'aufgaben' && aktiv && aktiv.matches('.neu input') && aktiv.value) return; // Eingabe nicht wegreissen
@@ -594,8 +691,12 @@ setInterval(() => {
   const n = naechstesGebet();
   const id = n ? n.uid : '';
   const c = $('#countdown');
-  if (id !== letztesGebet) { letztesGebet = id; zeichne(); } else if (c && n) c.textContent = restText(zeitpunkt(n));
+  const minute = new Date().getMinutes();
+  if (id !== letztesGebet) { letztesGebet = id; zeichne(); }
+  else if (gebetAnsicht === 'uhr' && minute !== letzteMinute) { letzteMinute = minute; zeichne(); } // Uhr: Punkt „jetzt“ rückt weiter
+  else if (c && n) c.textContent = restText(zeitpunkt(n));
 }, 1000);
+let letzteMinute = -1;
 document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - daten.stand > 60000) laden(true); });
 
 zeichne();
