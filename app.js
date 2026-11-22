@@ -607,7 +607,7 @@ function kontoBlatt() {
 }
 
 /* ================= Rahmen ================= */
-const TITEL = { heute: 'Heute', taeglich: 'Täglich', aufgaben: 'Aufgaben', links: 'Links' };
+const TITEL = { heute: 'Heute', taeglich: 'Täglich', aufgaben: 'Aufgaben', pool: 'Pool', links: 'Links' };
 function zeichne() {
   const eingerichtet = !!konto;
   document.querySelector('nav').hidden = !eingerichtet;
@@ -621,10 +621,10 @@ function zeichne() {
   const aktiv = document.activeElement;
   if (eingerichtet && sicht === 'aufgaben' && aktiv && aktiv.matches('.neu input') && aktiv.value) return; // Eingabe nicht wegreissen
   if (blattNeu && !$('#blatt').hidden) { const y = ($('.blatt-box') || {}).scrollTop || 0; blattNeu(); const box = $('.blatt-box'); if (box) box.scrollTop = y; }
-  fuelle($('#inhalt'), !eingerichtet ? sichtEinrichtung() : sicht === 'heute' ? sichtHeute() : sicht === 'taeglich' ? sichtTaeglich() : sicht === 'aufgaben' ? sichtAufgaben() : sichtLinks());
+  fuelle($('#inhalt'), !eingerichtet ? sichtEinrichtung() : sicht === 'heute' ? sichtHeute() : sicht === 'taeglich' ? sichtTaeglich() : sicht === 'aufgaben' ? sichtAufgaben() : sicht === 'pool' ? sichtPool() : sichtLinks());
 }
 for (const b of document.querySelectorAll('nav button')) b.addEventListener('click', () => wechsle(b.dataset.sicht));
-const REIHE = ['heute', 'taeglich', 'aufgaben', 'links'];
+const REIHE = ['heute', 'taeglich', 'aufgaben', 'pool', 'links'];
 function wechsle(ziel) {
   const von = REIHE.indexOf(sicht);
   const nach = REIHE.indexOf(ziel);
