@@ -167,6 +167,58 @@
   }
   const SVG = 'http://www.w3.org/2000/svg';
   function svg(tag, attrs) { const e = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; }
+  // Auswahlliste unter einem Eingabefeld: oeffnet sich sofort beim Hineinklicken mit allen vorhandenen Werten,
+  // filtert beim Tippen; ein neuer Name kann trotzdem frei eingegeben werden. Ersetzt die Browser-Liste (datalist),
+  // die erst beim Tippen oder ueber den kleinen Pfeil aufgeht.
+  function vorschlagsliste(feld, werte) {
+    feld.removeAttribute('list');
+    feld.setAttribute('autocomplete', 'off');
+    let box = null;
+    let wahl = -1;
+    let treffer = [];
+    const zu = () => { if (box) { box.remove(); box = null; } wahl = -1; };
+    const nimm = (w) => { feld.value = w; zu(); feld.dispatchEvent(new Event('change', { bubbles: true })); };
+    function zeigen() {
+      const q = feld.value.trim().toLowerCase();
+      treffer = [...new Set(werte)].filter((w) => w && (!q || w.toLowerCase().includes(q)) && w !== feld.value);
+      if (!treffer.length) { zu(); return; }
+      if (!box) {
+        box = document.createElement('div');
+        box.className = 'vorschlaege';
+        box.addEventListener('mousedown', (e) => e.preventDefault()); // Feld behaelt den Fokus
+        document.body.append(box);
+      }
+      box.replaceChildren(...treffer.map((w, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = i === wahl ? 'gewaehlt' : '';
+        b.textContent = w;
+        b.addEventListener('click', () => nimm(w));
+        return b;
+      }));
+      // Fest unter (oder ueber) dem Feld, damit kein Dialogrand die Liste abschneidet.
+      const r = feld.getBoundingClientRect();
+      const hoch = Math.min(240, treffer.length * 38 + 10);
+      const unten = window.innerHeight - r.bottom > hoch + 12 || r.top < hoch + 12;
+      box.style.left = r.left + 'px';
+      box.style.width = r.width + 'px';
+      box.style.maxHeight = hoch + 'px';
+      box.style.top = (unten ? r.bottom + 4 : r.top - hoch - 4) + 'px';
+    }
+    an(feld, 'focus', zeigen);
+    an(feld, 'click', zeigen);
+    an(feld, 'input', () => { wahl = -1; zeigen(); });
+    an(feld, 'blur', () => setTimeout(zu, 120));
+    an(feld, 'keydown', (e) => {
+      if (!box) { if (e.key === 'ArrowDown') { zeigen(); e.preventDefault(); } return; }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        wahl = (wahl + (e.key === 'ArrowDown' ? 1 : -1) + treffer.length) % treffer.length;
+        zeigen(); e.preventDefault();
+      } else if (e.key === 'Enter' && wahl >= 0) { nimm(treffer[wahl]); e.preventDefault(); e.stopPropagation(); }
+      else if (e.key === 'Escape') { zu(); e.stopPropagation(); e.preventDefault(); }
+    });
+    return feld;
+  }
   // Fortschrittsring. anteil 0..1, text in der Mitte, unter = Beschriftung darunter.
   function ring(anteil, text, unter, klasse) {
     const r = 30;
@@ -236,6 +288,6 @@
     return box;
   }
 
-  const K = { an, morph, morphInhalt, neueId, GEBETE, WT, ymd, datum, plusTage, leer, normalisieren, faellig, tagGewohnheiten, ops, archivName, archivLeer, archivOps, gebeteIst, tagesAnteil, ring, raster };
+  const K = { vorschlagsliste, an, morph, morphInhalt, neueId, GEBETE, WT, ymd, datum, plusTage, leer, normalisieren, faellig, tagGewohnheiten, ops, archivName, archivLeer, archivOps, gebeteIst, tagesAnteil, ring, raster };
   if (typeof module !== 'undefined' && module.exports) module.exports = K; else global.IndibatKern = K;
 }(typeof window !== 'undefined' ? window : globalThis));

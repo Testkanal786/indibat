@@ -474,7 +474,7 @@ function todoBlatt(listHref, t, titelVor) {
   const datum = h('input', { class: 'feld', type: 'date', value: alt.faellig || '' });
   const zeit = h('input', { class: 'feld', type: 'time', value: alt.zeit || '' });
   const bekannte = [...new Set(listen.flatMap((l) => daten.aufgaben[l.href] || []).map((x) => x.gruppe).filter(Boolean))].sort((x, y) => x.localeCompare(y, 'de'));
-  const gruppe = h('input', { class: 'feld', value: alt.gruppe || '', list: 'gruppen-liste', placeholder: 'z. B. Website', autocapitalize: 'sentences' });
+  const gruppe = IndibatKern.vorschlagsliste(h('input', { class: 'feld', value: alt.gruppe || '', placeholder: 'z. B. Website', autocapitalize: 'sentences' }), bekannte);
   const notiz = h('textarea', { class: 'feld', autocapitalize: 'sentences' });
   notiz.value = alt.notiz || '';
   const sichern = async () => {
@@ -496,7 +496,7 @@ function todoBlatt(listHref, t, titelVor) {
   blatt(neu ? 'Neue Aufgabe' : 'Aufgabe',
     h('label', null, 'Titel', titel), liste && h('label', null, 'Liste', liste),
     h('label', null, 'Fällig am', datum), h('label', null, 'Uhrzeit (optional)', zeit),
-    h('label', null, 'Gruppe', gruppe), h('datalist', { id: 'gruppen-liste' }, bekannte.map((g) => h('option', { value: g }))),
+    h('label', null, 'Gruppe', gruppe),
     h('label', null, 'Notiz', notiz),
     h('div', { class: 'reihe' }, neu ? h('span', { class: 'links' }) : h('button', { class: 'knopf rot links', onclick: loeschen }, 'Löschen'),
       h('button', { class: 'knopf', onclick: blattZu }, 'Abbrechen'), h('button', { class: 'knopf primaer', onclick: sichern }, neu ? 'Anlegen' : 'Sichern')));

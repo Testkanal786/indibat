@@ -321,3 +321,14 @@ nav button.an { color: var(--akzent); font-weight: 700; }
 .gk.gk-verpasst { border-style: dashed; border-color: rgba(244, 213, 141, .5); color: rgba(244, 213, 141, .7); }
 .u-gebet.u-verpasst circle { fill: var(--band); stroke: rgba(244, 213, 141, .55); stroke-dasharray: 3 3; }
 .u-gross { font-size: 34px; }
+
+/* Auswahlliste unter Eingabefeldern (z. B. Gruppe) */
+.vorschlaege { position: fixed; z-index: 60; overflow-y: auto; background: var(--fest, var(--karte)); border: 1px solid var(--rand); border-radius: 12px; padding: 4px; box-shadow: 0 12px 34px rgba(0, 0, 0, .22); animation: vorschlaege-rein .14s ease; }
+.vorschlaege button { display: block; width: 100%; text-align: left; padding: 8px 10px; border-radius: 8px; font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vorschlaege button:hover, .vorschlaege button.gewaehlt { background: var(--akzent); color: #fff; }
+@keyframes vorschlaege-rein { from { opacity: 0; transform: translateY(-4px); } }
+.vorschlaege button { padding: 11px 12px; font-size: 16px; }
+
+/* Umschalter mit drei Feldern: Gewohnheiten passt auch schmal ins Feld */
+.segment.drei { gap: 2px; }
+.segment.drei button { min-width: 0; padding: 8px 4px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -.01em; }
