@@ -202,7 +202,7 @@ function tagBlatt(tag) {
         gw.liste.length ? h('div', { class: 'karte' }, gw.liste.map((e) => gewohnheitZeile(e, tag))) : h('p', { class: 'leer' }, 'An diesem Tag war keine Gewohnheit fällig.'));
     }
     const wahl = h('input', { class: 'feld', type: 'date', value: tag, max: heuteT() });
-    K.an(wahl, 'change', () => { if (wahl.value) tagBlatt(wahl.value); });
+    K.an(wahl, 'change', (e) => { if (e.target.value) tagBlatt(e.target.value); });
     blatt(`${WOCHENTAGE[d.getDay()]}, ${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`, teile,
       h('label', null, 'Anderes Datum …', wahl),
       h('div', { class: 'reihe' }, h('span', { class: 'links' }), h('button', { class: 'knopf primaer', onclick: blattZu }, 'Fertig')));

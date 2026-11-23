@@ -35,11 +35,15 @@ function toast(text) {
 }
 let blattNeu = null;
 let blattUhr = 0;
+let blattAuffrischen = false;
 function blatt(titel, ...inhalt) {
   blattNeu = null;
   const b = $('#blatt');
   clearTimeout(blattUhr); b.classList.remove('zu');
-  fuelle(b, h('div', { class: 'blatt-box' }, h('h3', null, titel), inhalt));
+  // Neues Blatt: alten Inhalt ersetzen. Wuerde es angeglichen, blieben die alten Eingabefelder stehen,
+  // waehrend "Speichern" die neuen (unsichtbaren) liest - Aenderungen gingen verloren.
+  const box = h('div', { class: 'blatt-box' }, h('h3', null, titel), inhalt);
+  if (blattAuffrischen) fuelle(b, box); else b.replaceChildren(box);
   b.hidden = false;
 }
 // Schliessen mit kurzer Animation nach unten.
@@ -444,7 +448,10 @@ function sichtAufgaben() {
   const namen = [...gruppen.keys()].sort((a, b) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b, 'de')));
   const ordnung = (a, b) => (a.erledigt - b.erledigt) || (a.faellig || '9999').localeCompare(b.faellig || '9999') || a.titel.localeCompare(b.titel, 'de');
   const eingabe = h('input', { class: 'feld', placeholder: 'Neue Aufgabe', 'aria-label': 'Neue Aufgabe', enterkeyhint: 'done', autocapitalize: 'sentences' });
+  // Nach jedem Neuzeichnen bleibt das sichtbare Feld erhalten; "eingabe" ist dann nur noch eine unsichtbare Kopie.
+  const feldJetzt = () => $('#inhalt .neu input') || eingabe;
   const anlegen = async () => {
+    const eingabe = feldJetzt();
     const titel = eingabe.value.trim();
     if (!titel) return;
     eingabe.value = '';
@@ -459,7 +466,7 @@ function sichtAufgaben() {
       h('button', { class: zeigeErledigte ? '' : 'an', onclick: () => { zeigeErledigte = false; zeichne(); } }, `Offen (${alle.length - erledigtZahl})`),
       h('button', { class: zeigeErledigte ? 'an' : '', onclick: () => { zeigeErledigte = true; zeichne(); } }, `Erledigt (${erledigtZahl})`)),
     !zeigeErledigte && h('div', { class: 'neu' }, eingabe,
-      h('button', { class: 'knopf flach', 'aria-label': 'Mit Datum, Uhrzeit und Gruppe anlegen', onclick: () => { const t = eingabe.value.trim(); eingabe.value = ''; todoBlatt(filter, null, t); } }, 'Details'),
+      h('button', { class: 'knopf flach', 'aria-label': 'Mit Datum, Uhrzeit und Gruppe anlegen', onclick: () => { const f = feldJetzt(); const t = f.value.trim(); f.value = ''; todoBlatt(filter, null, t); } }, 'Details'),
       h('button', { class: 'knopf primaer flach', 'aria-label': 'Hinzufügen', onclick: anlegen }, '+')),
     sichtbar.length ? namen.map((g) => [g || namen.length > 1 ? h('p', { class: 'gruppe' }, g || 'Ohne Gruppe') : null,
       h('div', { class: 'karte' }, gruppen.get(g).sort(ordnung).map((t) => todoZeile(filter, t, false)))]) : h('div', { class: 'karte' }, h('p', { class: 'leer' }, zeigeErledigte ? 'In dieser Liste ist noch nichts erledigt.' : 'Alles erledigt.')),
@@ -557,7 +564,11 @@ function sichtLinks() {
 }
 
 /* ================= Einrichtung und Konto ================= */
+let einrichtungKarte = null;
 function sichtEinrichtung() {
+  // Dieselbe Karte bei jedem Neuzeichnen zurueckgeben. Sonst zeigt die Seite die alten Felder,
+  // waehrend "Verbinden" leere, unsichtbare Kopien liest - es passiert scheinbar nichts.
+  if (einrichtungKarte) return [einrichtungKarte];
   const url = h('input', { class: 'feld', type: 'url', inputmode: 'url', placeholder: 'https://…', autocapitalize: 'off' });
   const login = h('input', { class: 'feld', autocomplete: 'username', autocapitalize: 'off', spellcheck: 'false' });
   const pass = h('input', { class: 'feld', type: 'password', autocomplete: 'current-password' });
@@ -576,6 +587,7 @@ function sichtEinrichtung() {
       konto.user = await benutzerErmitteln();
       if (!konto.user) throw new Error('Benutzer nicht gefunden');
       lager.schreib('indibat-konto', konto);
+      einrichtungKarte = null; // Passwort nicht im Speicher behalten
       zeichne(); laden();
     } catch (e) {
       konto = null;
@@ -585,11 +597,12 @@ function sichtEinrichtung() {
       knopf.disabled = false; knopf.textContent = 'Verbinden';
     }
   });
-  return [h('div', { class: 'karte' },
+  einrichtungKarte = h('div', { class: 'karte', 'data-k': 'einrichtung' },
     h('p', { class: 'kopf' }, 'Mit deiner Nextcloud verbinden'),
     h('label', null, 'Adresse der Nextcloud', url), h('label', null, 'Anmeldename', login), h('label', null, 'App-Passwort', pass),
     h('p', { class: 'klein' }, 'Lege das App-Passwort in der Nextcloud unter Einstellungen → Sicherheit → „Geräte & Sitzungen“ an, nicht dein normales Passwort. Es bleibt nur auf diesem Handy und lässt sich dort jederzeit einzeln widerrufen.'),
-    meldung, h('div', { class: 'reihe' }, knopf))];
+    meldung, h('div', { class: 'reihe' }, knopf));
+  return [einrichtungKarte];
 }
 function kontoBlatt() {
   if (!konto) return;
@@ -620,7 +633,7 @@ function zeichne() {
   for (const b of document.querySelectorAll('nav button')) b.classList.toggle('an', b.dataset.sicht === sicht);
   const aktiv = document.activeElement;
   if (eingerichtet && sicht === 'aufgaben' && aktiv && aktiv.matches('.neu input') && aktiv.value) return; // Eingabe nicht wegreissen
-  if (blattNeu && !$('#blatt').hidden) { const y = ($('.blatt-box') || {}).scrollTop || 0; blattNeu(); const box = $('.blatt-box'); if (box) box.scrollTop = y; }
+  if (blattNeu && !$('#blatt').hidden) { const y = ($('.blatt-box') || {}).scrollTop || 0; blattAuffrischen = true; try { blattNeu(); } finally { blattAuffrischen = false; } const box = $('.blatt-box'); if (box) box.scrollTop = y; }
   fuelle($('#inhalt'), !eingerichtet ? sichtEinrichtung() : sicht === 'heute' ? sichtHeute() : sicht === 'taeglich' ? sichtTaeglich() : sicht === 'aufgaben' ? sichtAufgaben() : sicht === 'pool' ? sichtPool() : sichtLinks());
 }
 for (const b of document.querySelectorAll('nav button')) b.addEventListener('click', () => wechsle(b.dataset.sicht));
