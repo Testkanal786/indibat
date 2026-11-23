@@ -346,3 +346,8 @@ nav { grid-template-columns: repeat(5, 1fr); }
 .pool-zeile.behalten .pool-meta { color: var(--akzent); font-weight: 600; }
 .pool-aktionen { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .pool-aktionen .knopf { width: 100%; }
+
+/* Zuletzt geteilt (Freigabelinks) */
+.fg-typ { font-size: 15px; }
+.fg-mehr { display: block; width: 100%; padding: 10px 4px 4px; text-align: center; border-top: 1px solid var(--rand); }
+.fg-url { word-break: break-all; user-select: all; }

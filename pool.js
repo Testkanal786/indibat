@@ -36,7 +36,7 @@ async function poolLaden() {
   if (!konto || poolLaedt) return;
   poolLaedt = true;
   try {
-    const [liste, beh] = await Promise.all([poolLesen(), dateiLesen('pool.json', () => ({ behalten: [] }))]);
+    const [liste, beh] = await Promise.all([poolLesen(), dateiLesen('pool.json', () => ({ behalten: [] })), fgLaden()]);
     const behalten = new Set(beh.daten.behalten || []);
     poolDaten = liste.map((d) => ({ ...d, behalten: behalten.has(d.name) }));
   } catch (e) { if (!poolDaten) poolDaten = []; toast('Pool: ' + e.message); }
@@ -146,6 +146,61 @@ function sichtPool() {
         h('button', { class: 'mini', 'aria-label': 'Teilen', onclick: () => poolTeilen(d) }, '⇪'))))
       : h('div', { class: 'karte' }, h('p', { class: 'leer' }, 'Der Pool ist leer. Lege am Laptop Dateien in die Karte „Pool“ oder teile hier etwas aus einer anderen App mit Indibat.')),
     h('p', { class: 'klein mitte' }, 'Dateien verschwinden nach 14 Tagen, außer du behältst sie. Der Ordner heißt in der Nextcloud „Pool“.'),
+    ...fgAbschnitt(),
+  ];
+}
+
+/* ---------- Zuletzt geteilt: Freigabelinks (legt der Laptop an, Liste in Indibat/freigaben.json) ---------- */
+let fgVerlauf = null;
+async function fgLaden() {
+  try { fgVerlauf = (await dateiLesen('freigaben.json', () => ({ verlauf: [] }))).daten.verlauf || []; }
+  catch { if (!fgVerlauf) fgVerlauf = []; }
+}
+async function fgKopieren(v) {
+  try { await navigator.clipboard.writeText(v.url); toast('Link kopiert'); }
+  catch {
+    // Ersatz, falls der Browser die Zwischenablage verweigert
+    const f = h('textarea', { value: v.url });
+    document.body.append(f); f.select();
+    const ok = document.execCommand('copy');
+    f.remove();
+    toast(ok ? 'Link kopiert' : 'Kopieren ging nicht');
+  }
+}
+async function fgTeilen(v) {
+  try {
+    if (navigator.share) await navigator.share({ title: v.name, url: v.url });
+    else fgKopieren(v);
+  } catch (e) { if (e.name !== 'AbortError') toast('Teilen fehlgeschlagen'); }
+}
+function fgBlatt(v) {
+  blatt(v.name,
+    h('p', { class: 'klein fg-url' }, v.url),
+    h('p', { class: 'klein' }, `Geteilt ${p_alterText(v.zeit)} · in der Nextcloud: ${v.remote}`),
+    h('div', { class: 'pool-aktionen' },
+      h('button', { class: 'knopf primaer', onclick: () => { blattZu(); fgKopieren(v); } }, 'Link kopieren'),
+      h('button', { class: 'knopf', onclick: () => { blattZu(); fgTeilen(v); } }, 'Link teilen …'),
+      h('button', { class: 'knopf', onclick: () => { blattZu(); window.open(v.url, '_blank', 'noopener'); } }, 'Im Browser öffnen')),
+    h('div', { class: 'reihe' }, h('span', { class: 'links' }), h('button', { class: 'knopf', onclick: blattZu }, 'Schließen')));
+}
+function fgZeile(v) {
+  return h('div', { class: 'pool-zeile', 'data-k': 'fg:' + v.url },
+    h('button', { class: 'pool-los', onclick: () => fgBlatt(v) },
+      h('span', { class: 'pool-typ fg-typ' }, '🔗'),
+      h('span', { class: 'pool-text' }, h('span', { class: 'pool-name' }, v.name), h('span', { class: 'pool-meta' }, p_alterText(v.zeit)))),
+    h('button', { class: 'mini', 'aria-label': 'Link kopieren', onclick: () => fgKopieren(v) }, '⧉'));
+}
+let fgAlle = false;
+function fgAbschnitt() {
+  const v = fgVerlauf || [];
+  const zeigen = fgAlle ? v : v.slice(0, 5);
+  return [
+    h('p', { class: 'kopf abstand' }, 'Zuletzt geteilt'),
+    v.length
+      ? h('div', { class: 'karte' }, zeigen.map(fgZeile),
+        v.length > 5 && h('button', { class: 'textlink fg-mehr', onclick: () => { fgAlle = !fgAlle; zeichne(); } }, fgAlle ? 'Weniger anzeigen' : `Alle ${v.length} anzeigen`))
+      : h('div', { class: 'karte' }, h('p', { class: 'leer' }, 'Noch keine Freigabelinks.')),
+    h('p', { class: 'klein mitte' }, 'Links erstellst du am Laptop mit „Freigabelink erstellen“. Hier kannst du sie kopieren und teilen.'),
   ];
 }
 
