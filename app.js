@@ -304,7 +304,7 @@ const ANSICHT_SYM = {
 const gebetInfo = (t, jetzt) => ({ t, key: t.uid.split('-').pop(), name: t.titel, zeit: t.zeit, wann: zeitpunkt(t),
   zustand: t.erledigt ? 'fertig' : zeitpunkt(t) <= jetzt ? 'offen' : 'spaeter' });
 
-// Gebetsuhr: 24-Stunden-Zifferblatt, Mittag oben; goldener Bogen ab Fajr bis jetzt.
+// Gebetsuhr: 24-Stunden-Zifferblatt, Mittag oben; goldener Bogen ab Fajr bis zum Punkt "jetzt" (aktuelle Uhrzeit).
 function gebetsuhr(liste, naechstes, jetzt) {
   const C = 150, R = 110;
   const winkel = (min) => (min / 1440) * 360 + 90;
@@ -323,7 +323,7 @@ function gebetsuhr(liste, naechstes, jetzt) {
     sv('circle', { cx: C, cy: C, r: 140, class: 'u-punkte' }),
     sv('circle', { cx: C, cy: C, r: R, class: 'u-spur' }),
     sv('path', { d: bogen(fajr, maghrib), class: 'u-tag' }),
-    jetztMin > fajr && sv('path', { d: bogen(fajr, Math.min(jetztMin, letztes + 60)), class: 'u-vorbei', pathLength: 1 }),
+    jetztMin > fajr && sv('path', { d: bogen(fajr, jetztMin), class: 'u-vorbei', pathLength: 1 }),
     sv('circle', { cx: C, cy: C, r: 92, class: 'u-striche' }),
   ];
   // Beschriftungen nah beieinander liegender Gebete (freitags Jumu'a/Asr) auseinanderruecken.
