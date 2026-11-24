@@ -1,6 +1,6 @@
 // Indibat fuers Handy: haelt nur die Programmdateien vor, damit die App auch ohne Netz startet.
 // Deine Daten (Aufgaben, Gebete, Links) laufen nie hier durch; sie gehen direkt an deine Nextcloud.
-const VERSION = 'indibat-17';
+const VERSION = 'indibat-18';
 const DATEIEN = ['./', 'index.html', 'app.js', 'kern.js', 'taeglich.js', 'pool.js', 'stil.css', 'manifest.webmanifest', 'icons/indibat-64.png', 'icons/indibat-256.png'];
 
 self.addEventListener('install', (e) => {
@@ -19,7 +19,11 @@ async function geteiltAnnehmen(request) {
     await c.put(new Request('./geteilt/' + Date.now() + '-' + i++), new Response(datei, { headers: { 'X-Name': encodeURIComponent(datei.name), 'Content-Type': datei.type || 'application/octet-stream' } }));
   }
   const text = ['title', 'text', 'url'].map((k) => f.get(k)).filter(Boolean).join('\n');
-  if (text && !i) {
+  const link = text.match(/https?:\/\/[^\s<>"]+/);
+  if (link && !i) {
+    const titel = (f.get('title') || text.replace(link[0], '')).replace(/\s+/g, ' ').trim();
+    await c.put(new Request('./geteilt/' + Date.now() + '-l'), new Response(JSON.stringify({ url: link[0], titel }), { headers: { 'X-Link': '1', 'Content-Type': 'application/json' } }));
+  } else if (text && !i) {
     const name = 'Notiz ' + new Date().toISOString().slice(0, 16).replace('T', ' ').replace(':', '-') + '.txt';
     await c.put(new Request('./geteilt/' + Date.now() + '-t'), new Response(text, { headers: { 'X-Name': encodeURIComponent(name), 'Content-Type': 'text/plain; charset=utf-8' } }));
   }

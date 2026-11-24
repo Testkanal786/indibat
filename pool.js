@@ -7,6 +7,7 @@ const POOL_TAGE = 14;
 const p_poolUrl = (name) => `${wurzel()}/remote.php/dav/files/${encodeURIComponent(konto.user)}/Pool${name ? '/' + encodeURIComponent(name) : '/'}`;
 let poolDaten = null;
 let poolLaedt = false;
+let poolLinks = [];
 
 async function poolAnfrage(method, url, extra = {}) {
   let r;
@@ -39,6 +40,7 @@ async function poolLaden() {
     const [liste, beh] = await Promise.all([poolLesen(), dateiLesen('pool.json', () => ({ behalten: [] })), fgLaden()]);
     const behalten = new Set(beh.daten.behalten || []);
     poolDaten = liste.map((d) => ({ ...d, behalten: behalten.has(d.name) }));
+    poolLinks = (beh.daten.links || []).filter((l) => l && l.url).map((l) => ({ ...l, ablauf: l.zeit + POOL_TAGE * 86400000 })).filter((l) => l.behalten || l.ablauf > Date.now());
   } catch (e) { if (!poolDaten) poolDaten = []; toast('Pool: ' + e.message); }
   poolLaedt = false;
   zeichne();
@@ -130,22 +132,82 @@ function poolBlatt(d) {
       h('button', { class: 'knopf rot', onclick: () => { blattZu(); poolLoeschen(d); } }, 'Löschen')),
     h('div', { class: 'reihe' }, h('span', { class: 'links' }), h('button', { class: 'knopf', onclick: blattZu }, 'Schließen')));
 }
+/* ---------- Links im Pool (Indibat/pool.json → links) ---------- */
+const p_host = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
+const P_LEER = () => ({ behalten: [], links: [] });
+async function poolLinkAblegen(url, titel) {
+  url = String(url || '').trim();
+  if (/^www\./i.test(url)) url = 'https://' + url;
+  try { const u = new URL(url); if (!/^https?:$/.test(u.protocol)) throw new Error(); url = u.href; }
+  catch { toast('Das ist kein gültiger Link'); return; }
+  try {
+    await dateiAendern('pool.json', P_LEER, (x) => {
+      x.links = [{ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), url, titel: String(titel || '').trim().slice(0, 140), zeit: Date.now(), von: 'Handy' },
+        ...(x.links || []).filter((l) => l.url !== url)];
+    });
+    toast('Link im Pool – auch am Laptop');
+  } catch (e) { toast('Nicht gespeichert: ' + e.message); }
+  poolLaden();
+}
+async function poolLinkAendern(fn) {
+  try { await dateiAendern('pool.json', P_LEER, (x) => { x.links = fn(x.links || []); }); }
+  catch (e) { toast('Nicht gespeichert: ' + e.message); }
+  poolLaden();
+}
+function linkNeuBlatt() {
+  const feld = h('input', { class: 'feld', type: 'url', inputmode: 'url', placeholder: 'https://…', autocapitalize: 'off', spellcheck: 'false', enterkeyhint: 'done' });
+  const ok = () => { const u = feld.value.trim(); if (!u) return; blattZu(); poolLinkAblegen(u); };
+  IndibatKern.an(feld, 'keydown', (e) => { if (e.key === 'Enter') ok(); });
+  blatt('Link in den Pool',
+    h('label', null, 'Adresse', feld),
+    h('p', { class: 'klein' }, 'Schneller geht es aus Chrome & Co.: Teilen → Indibat.'),
+    h('div', { class: 'reihe' }, h('span', { class: 'links' }), h('button', { class: 'knopf', onclick: blattZu }, 'Abbrechen'), h('button', { class: 'knopf primaer', onclick: ok }, 'Ablegen')));
+  setTimeout(() => feld.focus(), 250);
+}
+function linkBlatt(l) {
+  const host = p_host(l.url);
+  const v = { url: l.url, name: l.titel || host };
+  blatt(l.titel || host,
+    h('p', { class: 'klein fg-url' }, l.url),
+    h('p', { class: 'klein' }, `${p_alterText(l.zeit)}${l.von ? ' · vom ' + l.von : ''} · ${p_restText(l)}`),
+    h('div', { class: 'pool-aktionen' },
+      h('button', { class: 'knopf primaer', onclick: () => { blattZu(); window.open(l.url, '_blank', 'noopener'); } }, 'Öffnen'),
+      h('button', { class: 'knopf', onclick: () => { blattZu(); fgKopieren(v); } }, 'Link kopieren'),
+      h('button', { class: 'knopf', onclick: () => { blattZu(); fgTeilen(v); } }, 'Link teilen …'),
+      h('button', { class: 'knopf', onclick: () => { blattZu(); poolLinkAendern((ls) => ls.map((x) => (x.id === l.id ? { ...x, behalten: !l.behalten } : x))); } }, l.behalten ? 'Nicht mehr behalten' : 'Behalten (nicht nach 14 Tagen löschen)'),
+      h('button', { class: 'knopf rot', onclick: () => { blattZu(); poolLinks = poolLinks.filter((x) => x !== l); zeichne(); poolLinkAendern((ls) => ls.filter((x) => x.id !== l.id)); } }, 'Löschen')),
+    h('div', { class: 'reihe' }, h('span', { class: 'links' }), h('button', { class: 'knopf', onclick: blattZu }, 'Schließen')));
+}
+function p_linkZeile(l) {
+  const host = p_host(l.url);
+  return h('div', { class: 'pool-zeile' + (l.behalten ? ' behalten' : ''), 'data-k': 'link:' + l.id },
+    h('button', { class: 'pool-los', onclick: () => linkBlatt(l) },
+      h('span', { class: 'pool-typ' }, 'LINK'),
+      h('span', { class: 'pool-text' }, h('span', { class: 'pool-name' }, l.titel || host), h('span', { class: 'pool-meta' }, `${host} · ${p_alterText(l.zeit)} · ${p_restText(l)}`))),
+    h('button', { class: 'mini', 'aria-label': 'Link öffnen', onclick: () => window.open(l.url, '_blank', 'noopener') }, '↗'));
+}
+function p_dateiZeile(d) {
+  return h('div', { class: 'pool-zeile' + (d.behalten ? ' behalten' : ''), 'data-k': d.name },
+    h('button', { class: 'pool-los', onclick: () => poolBlatt(d) },
+      h('span', { class: 'pool-typ' }, p_typText(d.name)),
+      h('span', { class: 'pool-text' }, h('span', { class: 'pool-name' }, d.name), h('span', { class: 'pool-meta' }, `${p_alterText(d.hochgeladen)} · ${p_groesseText(d.groesse)} · ${p_restText(d)}`))),
+    h('button', { class: 'mini', 'aria-label': 'Teilen', onclick: () => poolTeilen(d) }, '⇪'));
+}
 function sichtPool() {
   if (poolDaten === null) { poolLaden(); return [h('div', { class: 'karte' }, h('p', { class: 'leer' }, 'Wird geladen …'))]; }
   const waehler = h('input', { type: 'file', multiple: true, hidden: true });
-  IndibatKern.an(waehler, 'change', () => { poolHochladen([...waehler.files]); waehler.value = ''; });
+  IndibatKern.an(waehler, 'change', (e) => { poolHochladen([...e.target.files]); e.target.value = ''; });
+  const alle = [...poolDaten.map((d) => ({ zeit: d.hochgeladen, z: () => p_dateiZeile(d) })), ...poolLinks.map((l) => ({ zeit: l.zeit, z: () => p_linkZeile(l) }))]
+    .sort((a, b) => b.zeit - a.zeit);
   return [
     h('div', { class: 'reihe pool-kopf' }, waehler,
-      h('button', { class: 'knopf primaer voll', onclick: () => waehler.click() }, '+ Dateien in den Pool'),
+      h('button', { class: 'knopf primaer voll', onclick: (e) => e.currentTarget.parentNode.querySelector('input[type=file]').click() }, '+ Dateien'),
+      h('button', { class: 'knopf voll', onclick: linkNeuBlatt }, '+ Link'),
       h('button', { class: 'knopf flach', 'aria-label': 'Aktualisieren', onclick: poolLaden }, '↻')),
-    poolDaten.length
-      ? h('div', { class: 'karte' }, poolDaten.map((d) => h('div', { class: 'pool-zeile' + (d.behalten ? ' behalten' : ''), 'data-k': d.name },
-        h('button', { class: 'pool-los', onclick: () => poolBlatt(d) },
-          h('span', { class: 'pool-typ' }, p_typText(d.name)),
-          h('span', { class: 'pool-text' }, h('span', { class: 'pool-name' }, d.name), h('span', { class: 'pool-meta' }, `${p_alterText(d.hochgeladen)} · ${p_groesseText(d.groesse)} · ${p_restText(d)}`))),
-        h('button', { class: 'mini', 'aria-label': 'Teilen', onclick: () => poolTeilen(d) }, '⇪'))))
-      : h('div', { class: 'karte' }, h('p', { class: 'leer' }, 'Der Pool ist leer. Lege am Laptop Dateien in die Karte „Pool“ oder teile hier etwas aus einer anderen App mit Indibat.')),
-    h('p', { class: 'klein mitte' }, 'Dateien verschwinden nach 14 Tagen, außer du behältst sie. Der Ordner heißt in der Nextcloud „Pool“.'),
+    alle.length
+      ? h('div', { class: 'karte' }, alle.map((e) => e.z()))
+      : h('div', { class: 'karte' }, h('p', { class: 'leer' }, 'Der Pool ist leer. Lege am Laptop Dateien oder Links in die Karte „Pool“ oder teile hier etwas aus einer anderen App mit Indibat.')),
+    h('p', { class: 'klein mitte' }, 'Dateien und Links verschwinden nach 14 Tagen, außer du behältst sie. Der Ordner heißt in der Nextcloud „Pool“.'),
     ...fgAbschnitt(),
   ];
 }
@@ -211,16 +273,21 @@ async function geteiltHochladen() {
   const keys = await c.keys();
   if (!keys.length) return;
   const dateien = [];
+  const links = [];
   for (const k of keys) {
     const r = await c.match(k);
     if (!r) continue;
-    const name = decodeURIComponent(r.headers.get('X-Name') || 'Datei');
-    dateien.push(new File([await r.blob()], name, { type: r.headers.get('Content-Type') || 'application/octet-stream' }));
+    if (r.headers.get('X-Link')) { try { links.push(await r.json()); } catch { /* kaputt, verwerfen */ } }
+    else {
+      const name = decodeURIComponent(r.headers.get('X-Name') || 'Datei');
+      dateien.push(new File([await r.blob()], name, { type: r.headers.get('Content-Type') || 'application/octet-stream' }));
+    }
     await c.delete(k);
   }
   sicht = 'pool';
   zeichne();
-  await poolHochladen(dateien);
+  for (const l of links) await poolLinkAblegen(l.url, l.titel);
+  if (dateien.length) await poolHochladen(dateien);
 }
 setTimeout(() => {
   if (new URLSearchParams(location.search).get('sicht') === 'pool') { sicht = 'pool'; history.replaceState(null, '', location.pathname); zeichne(); }
